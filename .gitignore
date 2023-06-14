@@ -1,5 +1,5 @@
 .idea/
-src/client
-src/server
+#src/client
+#src/server
 build/
 scripts/
