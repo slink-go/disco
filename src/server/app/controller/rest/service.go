@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/ws-slink/disco/common/api"
 	"github.com/ws-slink/disco/server/app/jwt"
 	"github.com/ws-slink/disco/server/common/util/logger"
@@ -48,6 +51,8 @@ func (s *restServiceImpl) Run(address string) {
 }
 func (s *restServiceImpl) configureRouter() *mux.Router {
 	router := mux.NewRouter()
+	router.Use(prometheusMiddleware)
+	router.Path("/metrics").Handler(promhttp.Handler())
 	router.HandleFunc("/api/token", s.handleGetToken).Methods("GET")
 	router.HandleFunc("/api/join", s.authMiddleware(s.handleJoin)).Methods("POST")
 	router.HandleFunc("/api/leave", s.authMiddleware(s.handleLeave)).Methods("POST")
@@ -179,6 +184,26 @@ func writeResponseBytes(w http.ResponseWriter, code int, data []byte) {
 	if err != nil {
 		return
 	}
+}
+
+// endregion
+// region - monitoring
+
+var (
+	httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "disco_http_duration_seconds",
+		Help: "Duration of HTTP requests.",
+	}, []string{"path"})
+)
+
+func prometheusMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := mux.CurrentRoute(r)
+		path, _ := route.GetPathTemplate()
+		timer := prometheus.NewTimer(httpDuration.WithLabelValues(path))
+		next.ServeHTTP(w, r)
+		timer.ObserveDuration()
+	})
 }
 
 // endregion

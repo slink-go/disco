@@ -80,15 +80,18 @@ func (rs *inMemRegistry) Leave(ctx context.Context, clientId string) error {
 func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 	rs.mutex.RLock()
 	defer rs.mutex.RUnlock()
-	var result []api.Client
+	result := []api.Client{}
 	clients := rs.clients
 	if ctx.Value(api.TenantKey) != nil {
 		tenant := ctx.Value(api.TenantKey).(string)
 		if tenant != "" {
-			clients = rs.tenants[tenant].Clients
+			tnt, ok := rs.tenants[tenant]
+			if ok {
+				clients = tnt.Clients
+			}
 		}
 	}
-	for _, t := range clients { // iterate over map (serviceId:client)
+	for _, t := range clients {
 		result = append(result, t)
 	}
 	return result
@@ -101,8 +104,10 @@ func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
 		return api.Pong{}, api.NewClientNotFoundError(clientId)
 	}
 	v.Ping()
-	// if v.needsUpdade return PongTypeUpdated
-	return api.Pong{}, nil
+	// if v.needsUpdate return PongTypeChanged
+	return api.Pong{
+		Response: api.PongTypeOk,
+	}, nil
 }
 
 func (rs *inMemRegistry) createClientId() string {

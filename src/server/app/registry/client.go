@@ -11,7 +11,7 @@ type client struct {
 	ServiceId_ string          `json:"service_id"`
 	Endpoints_ []api.Endpoint  `json:"endpoints,omitempty"`
 	Meta_      map[string]any  `json:"meta,omitempty"`
-	LastSeen_  time.Time       `json:"last_seen,omitempty"`
+	LastSeen_  time.Time       `json:"last_seen,omitempty"` // TODO: exclude from json output
 	State_     api.ClientState `json:"state"`
 }
 
