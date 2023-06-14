@@ -102,7 +102,7 @@ func (s *restServiceImpl) handleJoin(w http.ResponseWriter, r *http.Request) {
 		writeResponseStr(w, http.StatusInternalServerError, fmt.Sprintf("could not marshall json: %s", err.Error()))
 		return
 	}
-	w.Header().Set(ContentTypeHeader, ContentTypeApplicationJson)
+	w.Header().Set(api.ContentTypeHeader, api.ContentTypeApplicationJson)
 	writeResponseStr(w, http.StatusOK, string(result))
 }
 func (s *restServiceImpl) handleLeave(w http.ResponseWriter, r *http.Request) {

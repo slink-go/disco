@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/gddo/httputil/header"
+	"github.com/ws-slink/disco/common/api"
 	"io"
 	"net/http"
 	"strings"
@@ -23,10 +24,10 @@ func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst interface{}) err
 
 	var err error
 
-	if r.Header.Get(ContentTypeHeader) != "" {
-		value, _ := header.ParseValueAndParams(r.Header, ContentTypeHeader)
-		if value != ContentTypeApplicationJson {
-			msg := fmt.Sprintf("%s header is not %s", ContentTypeHeader, ContentTypeApplicationJson)
+	if r.Header.Get(api.ContentTypeHeader) != "" {
+		value, _ := header.ParseValueAndParams(r.Header, api.ContentTypeHeader)
+		if value != api.ContentTypeApplicationJson {
+			msg := fmt.Sprintf("%s header is not %s", api.ContentTypeHeader, api.ContentTypeApplicationJson)
 			return &malformedRequest{status: http.StatusUnsupportedMediaType, msg: msg}
 		}
 	}
