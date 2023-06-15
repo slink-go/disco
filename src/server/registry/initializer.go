@@ -3,12 +3,12 @@ package registry
 import (
 	"fmt"
 	"github.com/ws-slink/disco/common/api"
+	"github.com/ws-slink/disco/server/config"
 	"plugin"
-	"time"
 )
 
 type Backend interface {
-	Init(pingInterval time.Duration) api.Registry
+	Init(cfg *config.AppConfig) api.Registry
 }
 
 func LoadBackend(path, typ string) (Backend, error) {

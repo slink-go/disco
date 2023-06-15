@@ -21,7 +21,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	r := b.Init(cfg.PingDuration)
+	r := b.Init(cfg)
 
 	restSvc, err := rest.Init(j, r, cfg.MonitoringEnabled)
 	if err != nil {

@@ -16,6 +16,9 @@ type AppConfig struct {
 	SecretKey         string
 	BackendType       string
 	PluginDir         string
+	FailingThreshold  uint16
+	DownThreshold     uint16
+	RemoveThreshold   uint16
 }
 
 func Load() *AppConfig {
@@ -28,12 +31,20 @@ func Load() *AppConfig {
 		SecretKey:         config.ReadString("DISCO_SECRET_KEY"),
 		BackendType:       strings.ToLower(config.ReadString("DISCO_BACKEND_TYPE")),
 		PluginDir:         config.ReadStringOrDefault("DISCO_PLUGIN_PATH", "."),
+		FailingThreshold:  uint16(config.ReadIntOrDefault("DISCO_CLIENT_FAILING_THRESHOLD", 2)),
+		DownThreshold:     uint16(config.ReadIntOrDefault("DISCO_CLIENT_DOWN_THRESHOLD", 4)),
+		RemoveThreshold:   uint16(config.ReadIntOrDefault("DISCO_CLIENT_REMOVE_THRESHOLD", 8)),
 	}
 
 	logger.Info("[cfg] monitoring enabled: %v", cfg.MonitoringEnabled)
 	logger.Info("[cfg] service port: %v", cfg.ServicePort)
 	logger.Info("[cfg] ping duration: %v", str2duration.String(cfg.PingDuration))
+	logger.Info("[cfg] failing threshold: %v", cfg.FailingThreshold)
+	logger.Info("[cfg] down threshold: %v", cfg.DownThreshold)
+	logger.Info("[cfg] remove threshold: %v", cfg.RemoveThreshold)
 	logger.Info("[cfg] secret key: %v", cfg.SecretKey)
+	logger.Info("[cfg] backend type: %v", cfg.BackendType)
+	logger.Info("[cfg] plugin dir: %v", cfg.PluginDir)
 
 	return &cfg
 }

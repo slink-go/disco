@@ -6,6 +6,7 @@ import (
 	"github.com/ws-slink/disco/backend/common"
 	"github.com/ws-slink/disco/common/api"
 	"github.com/ws-slink/disco/common/util/logger"
+	"github.com/ws-slink/disco/server/config"
 	"reflect"
 	"sync"
 	"time"
@@ -15,8 +16,8 @@ var Backend inMemBackendInitializer
 
 type inMemBackendInitializer struct{}
 
-func (bi *inMemBackendInitializer) Init(pingInterval time.Duration) api.Registry {
-	return newInMemRegistry(pingInterval)
+func (bi *inMemBackendInitializer) Init(cfg *config.AppConfig) api.Registry {
+	return newInMemRegistry(cfg)
 }
 
 type inMemRegistry struct {
@@ -26,12 +27,14 @@ type inMemRegistry struct {
 	mutex        sync.RWMutex
 }
 
-func newInMemRegistry(pingInterval time.Duration) api.Registry {
-	return &inMemRegistry{
+func newInMemRegistry(cfg *config.AppConfig) api.Registry {
+	registry := inMemRegistry{
 		tenants:      map[string]*common.Tenant{},
 		clients:      map[string]api.Client{},
-		pingInterval: api.Duration{Duration: pingInterval},
+		pingInterval: api.Duration{Duration: cfg.PingDuration},
 	}
+	registry.run(cfg)
+	return &registry
 }
 
 func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*api.JoinResponse, error) {
@@ -141,4 +144,52 @@ func (rs *inMemRegistry) equalClients(a, b api.Client) bool {
 	return a.ServiceId() == b.ServiceId() &&
 		reflect.DeepEqual(a.Endpoints(), b.Endpoints()) &&
 		reflect.DeepEqual(a.Meta(), b.Meta())
+}
+func (rs *inMemRegistry) run(cfg *config.AppConfig) {
+	//defer func() {
+	//	logger.Warning("run exit")
+	//}()
+	go func(r api.Registry) {
+		//defer func() {
+		//	logger.Warning("checker exit")
+		//}()
+		for {
+			//logger.Info("check clients")
+			time.Sleep(time.Second)
+			for _, c := range r.List(context.Background()) {
+				interval := time.Now().Sub(c.LastSeen())
+				if time.Duration(cfg.RemoveThreshold)*cfg.PingDuration < interval {
+					if c.State() != api.ClientStateRemoved {
+						c.SetState(api.ClientStateRemoved)
+						rs.remove(c.ClientId())
+						logger.Info("removing client %s", c.ClientId())
+					}
+				} else if time.Duration(cfg.DownThreshold)*cfg.PingDuration < interval {
+					if c.State() != api.ClientStateDown {
+						c.SetState(api.ClientStateDown)
+						logger.Info("client %s down", c.ClientId())
+					}
+				} else if time.Duration(cfg.FailingThreshold)*cfg.PingDuration < interval {
+					if c.State() != api.ClientStateFailing {
+						c.SetState(api.ClientStateFailing)
+						logger.Info("client %s failing", c.ClientId())
+					}
+				} else {
+					// skip
+				}
+			}
+		}
+	}(rs)
+}
+func (rs *inMemRegistry) remove(clientId string) {
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
+	delete(rs.clients, clientId)
+	for _, t := range rs.tenants {
+		_, ok := t.Clients[clientId]
+		if ok {
+			delete(t.Clients, clientId)
+			return
+		}
+	}
 }

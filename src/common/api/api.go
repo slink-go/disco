@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // region - types
@@ -204,10 +205,14 @@ func NewEndpoint(url string) (Endpoint, error) {
 // region - clients
 
 type Client interface {
+	ClientId() string
 	ServiceId() string
 	Endpoints() []Endpoint
 	Meta() map[string]any
 	Ping()
+	LastSeen() time.Time
+	State() ClientState
+	SetState(state ClientState)
 }
 
 // endregion

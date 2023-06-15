@@ -35,6 +35,9 @@ func NewClient(clientId, serviceId string, endpoints []string, meta map[string]a
 	}, nil
 }
 
+func (c *client) ClientId() string {
+	return c.ClientId_
+}
 func (c *client) ServiceId() string {
 	return c.ServiceId_
 }
@@ -46,4 +49,17 @@ func (c *client) Meta() map[string]any {
 }
 func (c *client) Ping() {
 	c.LastSeen_ = time.Now()
+	if c.State() != api.ClientStateUp {
+		c.SetState(api.ClientStateUp)
+		logger.Info("client %s up", c.ClientId())
+	}
+}
+func (c *client) LastSeen() time.Time {
+	return c.LastSeen_
+}
+func (c *client) State() api.ClientState {
+	return c.State_
+}
+func (c *client) SetState(state api.ClientState) {
+	c.State_ = state
 }
