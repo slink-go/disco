@@ -1,0 +1,1 @@
+Disco is a discovery service (a kind of eureka alternative).
