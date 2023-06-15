@@ -11,7 +11,6 @@ import (
 	"github.com/ws-slink/disco/common/api"
 	"github.com/ws-slink/disco/server/app/jwt"
 	"github.com/ws-slink/disco/server/common/util/logger"
-	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -24,21 +23,36 @@ type Service interface {
 	Run(address string)
 }
 
-func Init(jwt jwt.Jwt, registry api.Registry) (Service, error) {
+func Init(jwt jwt.Jwt, registry api.Registry, monitoringEnabled bool) (Service, error) {
+
+	var httpDuration *prometheus.HistogramVec
+
+	if monitoringEnabled {
+		httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+			Name: "disco_http_duration_seconds",
+			Help: "Duration of HTTP requests.",
+		}, []string{"path"})
+	}
+
 	return &restServiceImpl{
-		jwt:      jwt,
-		registry: registry,
+		jwt:               jwt,
+		registry:          registry,
+		httpDurationHist:  httpDuration,
+		monitoringEnabled: monitoringEnabled,
 	}, nil
+
 }
 
 type restServiceImpl struct {
-	jwt      jwt.Jwt
-	registry api.Registry
+	jwt               jwt.Jwt
+	registry          api.Registry
+	httpDurationHist  *prometheus.HistogramVec
+	monitoringEnabled bool
 }
 
 func (s *restServiceImpl) Run(address string) {
 	router := s.configureRouter()
-	logger.Info("Maket proxy service started on %s", address)
+	logger.Info("Disco service started on %s", address)
 	log.Fatal(
 		http.ListenAndServe(
 			address,
@@ -51,22 +65,43 @@ func (s *restServiceImpl) Run(address string) {
 }
 func (s *restServiceImpl) configureRouter() *mux.Router {
 	router := mux.NewRouter()
-	router.Use(prometheusMiddleware)
-	router.Path("/metrics").Handler(promhttp.Handler())
-	router.HandleFunc("/api/token", s.handleGetToken).Methods("GET")
-	router.HandleFunc("/api/join", s.authMiddleware(s.handleJoin)).Methods("POST")
-	router.HandleFunc("/api/leave", s.authMiddleware(s.handleLeave)).Methods("POST")
-	router.HandleFunc("/api/ping", s.authMiddleware(s.handlePing)).Methods("POST")
-	router.HandleFunc("/api/list", s.authMiddleware(s.handleList)).Methods("GET")
-	router.HandleFunc("/api/test", s.handleTest).Methods("POST")
+
+	// https://stackoverflow.com/questions/64768950/how-to-use-specific-middleware-for-specific-routes-in-a-get-subrouter-in-gorilla
+	if s.monitoringEnabled {
+		mr := router.Path("/metrics").Subrouter()
+		mr.Use(s.prometheusMiddleware)
+		mr.Path("").Handler(promhttp.Handler())
+	}
+
+	tr := router.Path("/api/token").Subrouter()
+	tr.HandleFunc("", s.handleGetToken).Methods("GET")
+
+	ar := router.Path("/api").Subrouter()
+	ar.Use(s.authMiddleware)
+
+	router.HandleFunc("/api/join", s.handleJoin).Methods("POST")
+	router.HandleFunc("/api/leave", s.handleLeave).Methods("POST")
+	router.HandleFunc("/api/ping", s.handlePing).Methods("POST")
+	router.HandleFunc("/api/list", s.handleList).Methods("GET")
+
 	return router
 }
 
 // endregion
 // region - middleware
 
-func (s *restServiceImpl) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *restServiceImpl) prometheusMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := mux.CurrentRoute(r)
+		path, _ := route.GetPathTemplate()
+		timer := prometheus.NewTimer(s.httpDurationHist.WithLabelValues(path))
+		next.ServeHTTP(w, r)
+		timer.ObserveDuration()
+	})
+}
+
+func (s *restServiceImpl) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenString := r.Header.Get("Authorization")
 		if len(tokenString) == 0 {
 			writeResponseStr(w, http.StatusUnauthorized, "Missing Authorization Header")
@@ -82,7 +117,7 @@ func (s *restServiceImpl) authMiddleware(next http.HandlerFunc) http.HandlerFunc
 			r = r.WithContext(context.WithValue(r.Context(), api.TenantKey, payload.GetTenant()))
 		}
 		next.ServeHTTP(w, r)
-	}
+	})
 }
 
 // endregion
@@ -99,12 +134,12 @@ func (s *restServiceImpl) handleJoin(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), api.TenantKey, "test") // TODO: tenant name should be extracted from auth token in auth middleware
 	resp, err := s.registry.Join(ctx, rq)
 	if err != nil {
-		writeResponseStr(w, http.StatusBadRequest, fmt.Sprintf("could not join: %s", err.Error()))
+		writeResponseMessage(w, http.StatusBadRequest, "error", fmt.Sprintf("could not join: %s", err.Error()))
 		return
 	}
 	result, err := json.Marshal(resp)
 	if err != nil {
-		writeResponseStr(w, http.StatusInternalServerError, fmt.Sprintf("could not marshall json: %s", err.Error()))
+		writeResponseMessage(w, http.StatusInternalServerError, "error", fmt.Sprintf("could not marshall json: %s", err.Error()))
 		return
 	}
 	w.Header().Set(api.ContentTypeHeader, api.ContentTypeApplicationJson)
@@ -115,21 +150,21 @@ func (s *restServiceImpl) handleLeave(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), api.TenantKey, "test") // TODO: tenant name should be extracted from auth token in auth middleware
 	err := s.registry.Leave(ctx, clientId)
 	if err != nil {
-		writeResponseStr(w, http.StatusInternalServerError, err.Error())
+		writeResponseError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeResponseStr(w, http.StatusOK, fmt.Sprintf("left %s", clientId))
+	writeResponseMessage(w, http.StatusOK, "left", clientId)
 }
 func (s *restServiceImpl) handlePing(w http.ResponseWriter, r *http.Request) {
 	clientId := r.URL.Query().Get("id")
 	pong, err := s.registry.Ping(clientId)
 	if err != nil {
-		writeResponseStr(w, http.StatusInternalServerError, err.Error())
+		writeResponseError(w, http.StatusInternalServerError, err)
 		return
 	}
 	result, err := json.Marshal(pong)
 	if err != nil {
-		writeResponseStr(w, http.StatusInternalServerError, fmt.Sprintf("could not marshall json: %s", err.Error()))
+		writeResponseMessage(w, http.StatusInternalServerError, "error", fmt.Sprintf("could not marshall json: %s", err.Error()))
 		return
 	}
 	writeResponseBytes(w, http.StatusOK, result)
@@ -150,7 +185,7 @@ func (s *restServiceImpl) handleList(w http.ResponseWriter, r *http.Request) {
 	}
 	b, err := json.Marshal(list)
 	if err != nil {
-		writeResponseStr(w, http.StatusInternalServerError, err.Error())
+		writeResponseError(w, http.StatusInternalServerError, err)
 		return
 	}
 	writeResponseBytes(w, http.StatusOK, b)
@@ -159,17 +194,10 @@ func (s *restServiceImpl) handleList(w http.ResponseWriter, r *http.Request) {
 func (s *restServiceImpl) handleGetToken(w http.ResponseWriter, r *http.Request) {
 	token, err := s.jwt.Generate(r.RemoteAddr, "", time.Second*30)
 	if err != nil {
-		writeResponseStr(w, http.StatusInternalServerError, err.Error())
+		writeResponseError(w, http.StatusInternalServerError, err)
 		return
 	}
 	writeResponseStr(w, http.StatusOK, token)
-}
-func (s *restServiceImpl) handleTest(w http.ResponseWriter, r *http.Request) {
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		writeResponseStr(w, http.StatusInternalServerError, err.Error())
-	}
-	writeResponseBytes(w, http.StatusOK, b)
 }
 
 // endregion
@@ -185,25 +213,11 @@ func writeResponseBytes(w http.ResponseWriter, code int, data []byte) {
 		return
 	}
 }
-
-// endregion
-// region - monitoring
-
-var (
-	httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "disco_http_duration_seconds",
-		Help: "Duration of HTTP requests.",
-	}, []string{"path"})
-)
-
-func prometheusMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		route := mux.CurrentRoute(r)
-		path, _ := route.GetPathTemplate()
-		timer := prometheus.NewTimer(httpDuration.WithLabelValues(path))
-		next.ServeHTTP(w, r)
-		timer.ObserveDuration()
-	})
+func writeResponseMessage(w http.ResponseWriter, code int, key, value string) {
+	writeResponseStr(w, code, fmt.Sprintf("{\"%s\": \"%s\"}", key, value))
+}
+func writeResponseError(w http.ResponseWriter, code int, err error) {
+	writeResponseMessage(w, code, "error", err.Error())
 }
 
 // endregion

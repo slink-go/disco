@@ -7,18 +7,21 @@ import (
 	"github.com/ws-slink/disco/server/common/util/logger"
 	"reflect"
 	"sync"
+	"time"
 )
 
 type inMemRegistry struct {
-	tenants map[string]*Tenant
-	clients map[string]api.Client
-	mutex   sync.RWMutex
+	tenants      map[string]*Tenant
+	clients      map[string]api.Client
+	pingInterval api.Duration
+	mutex        sync.RWMutex
 }
 
-func NewInMemRegistry() api.Registry {
+func NewInMemRegistry(pingInterval time.Duration) api.Registry {
 	return &inMemRegistry{
-		tenants: map[string]*Tenant{},
-		clients: map[string]api.Client{},
+		tenants:      map[string]*Tenant{},
+		clients:      map[string]api.Client{},
+		pingInterval: api.Duration{Duration: pingInterval},
 	}
 }
 
@@ -48,7 +51,7 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	}
 	return &api.JoinResponse{
 		ClientId:     clientId,
-		PingInterval: api.DefaultPingInterval,
+		PingInterval: rs.pingInterval,
 	}, nil
 }
 func (rs *inMemRegistry) Leave(ctx context.Context, clientId string) error {

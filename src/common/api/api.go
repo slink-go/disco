@@ -5,21 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // region - types
 
-var DefaultPingInterval = Duration{5 * time.Second}
-
 const TenantKey = "tenant"
 
 type PongType uint8
-
-const (
-	Ok PongType = iota
-	Changed
-)
 
 const (
 	PongTypeUnknown PongType = iota
