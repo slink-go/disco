@@ -9,8 +9,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/ws-slink/disco/common/api"
-	"github.com/ws-slink/disco/server/app/jwt"
-	"github.com/ws-slink/disco/server/common/util/logger"
+	"github.com/ws-slink/disco/common/util/logger"
+	"github.com/ws-slink/disco/server/jwt"
 	"log"
 	"net/http"
 	"strings"
@@ -90,6 +90,7 @@ func (s *restServiceImpl) configureRouter() *mux.Router {
 // endregion
 // region - middleware
 
+// https://www.robustperception.io/prometheus-middleware-for-gorilla-mux/
 func (s *restServiceImpl) prometheusMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		route := mux.CurrentRoute(r)

@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/ws-slink/disco/server/common/util/logger"
+	"github.com/ws-slink/disco/common/util/logger"
 	"github.com/xhit/go-str2duration/v2"
 	"os"
 	"strconv"
@@ -60,6 +60,15 @@ func ReadDurationOrDefault(key string, def time.Duration) time.Duration {
 		return def
 	}
 	return v
+}
+func ReadStringOrDefault(key, def string) string {
+	k := preprocessKey(key)
+	env := os.Getenv(k)
+	if env == "" {
+		logger.Debug(errTemplate, k)
+		return def
+	}
+	return env
 }
 
 func ReadString(key string) string {

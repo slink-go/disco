@@ -1,4 +1,4 @@
-package registry
+package common
 
 import "github.com/ws-slink/disco/common/api"
 

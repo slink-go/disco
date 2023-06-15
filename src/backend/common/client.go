@@ -1,8 +1,8 @@
-package registry
+package common
 
 import (
 	"github.com/ws-slink/disco/common/api"
-	"github.com/ws-slink/disco/server/common/util/logger"
+	"github.com/ws-slink/disco/common/util/logger"
 	"time"
 )
 
@@ -11,7 +11,7 @@ type client struct {
 	ServiceId_ string          `json:"service_id"`
 	Endpoints_ []api.Endpoint  `json:"endpoints,omitempty"`
 	Meta_      map[string]any  `json:"meta,omitempty"`
-	LastSeen_  time.Time       `json:"last_seen,omitempty"` // TODO: exclude from json output
+	LastSeen_  time.Time       `json:"-"`
 	State_     api.ClientState `json:"state"`
 }
 

@@ -1,25 +1,34 @@
-package registry
+package main
 
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/ws-slink/disco/backend/common"
 	"github.com/ws-slink/disco/common/api"
-	"github.com/ws-slink/disco/server/common/util/logger"
+	"github.com/ws-slink/disco/common/util/logger"
 	"reflect"
 	"sync"
 	"time"
 )
 
+var Backend inMemBackendInitializer
+
+type inMemBackendInitializer struct{}
+
+func (bi *inMemBackendInitializer) Init(pingInterval time.Duration) api.Registry {
+	return newInMemRegistry(pingInterval)
+}
+
 type inMemRegistry struct {
-	tenants      map[string]*Tenant
+	tenants      map[string]*common.Tenant
 	clients      map[string]api.Client
 	pingInterval api.Duration
 	mutex        sync.RWMutex
 }
 
-func NewInMemRegistry(pingInterval time.Duration) api.Registry {
+func newInMemRegistry(pingInterval time.Duration) api.Registry {
 	return &inMemRegistry{
-		tenants:      map[string]*Tenant{},
+		tenants:      map[string]*common.Tenant{},
 		clients:      map[string]api.Client{},
 		pingInterval: api.Duration{Duration: pingInterval},
 	}
@@ -29,7 +38,7 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	rs.mutex.Lock()
 	defer rs.mutex.Unlock()
 	clientId := rs.createClientId()
-	c, err := NewClient(clientId, request.ServiceId, request.Endpoints, request.Meta)
+	c, err := common.NewClient(clientId, request.ServiceId, request.Endpoints, request.Meta)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +50,7 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 		tenant := ctx.Value(api.TenantKey).(string)
 		if tenant != "" {
 			if rs.tenants[tenant] == nil {
-				rs.tenants[tenant] = &Tenant{
+				rs.tenants[tenant] = &common.Tenant{
 					Name:    tenant,
 					Clients: make(map[string]api.Client),
 				}
