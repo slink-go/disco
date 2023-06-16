@@ -1,5 +1,7 @@
 go 1.20
 
 use (
-	./src
+	./src/backend
+	./src/common
+	./src/server
 )
