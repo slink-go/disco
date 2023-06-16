@@ -1,7 +1,7 @@
 go 1.20
 
 use (
-	./src/backend
-	./src/common
-	./src/server
+	./backend
+	./common
+	./server
 )
