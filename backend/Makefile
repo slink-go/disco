@@ -7,7 +7,7 @@ help:
 	# make redis   - Run the from example
 
 build:
-	@go build -ldflags "-s -w" -buildmode plugin -o ../../build/inmem.so inmem/registry.go
+	@go build -ldflags "-s -w" -buildmode plugin -o ../build/inmem.so inmem/registry.go
 
 #inmem: build
 #	@go run main/main.go inmem
