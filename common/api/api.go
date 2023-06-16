@@ -148,7 +148,6 @@ type Ping struct {
 }
 
 type JoinRequest struct {
-	Tenant    string         `json:"-"`
 	ServiceId string         `json:"service,omitempty"`
 	Endpoints []string       `json:"endpoints,omitempty"`
 	Meta      map[string]any `json:"meta,omitempty"`
