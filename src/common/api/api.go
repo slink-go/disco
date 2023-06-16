@@ -215,6 +215,8 @@ type Client interface {
 	LastSeen() time.Time
 	State() ClientState
 	SetState(state ClientState)
+	SetDirty(value bool)
+	IsDirty() bool
 }
 
 // endregion

@@ -14,6 +14,7 @@ type client struct {
 	Meta_      map[string]any  `json:"meta,omitempty"`
 	LastSeen_  time.Time       `json:"-"`
 	State_     api.ClientState `json:"state"`
+	Dirty_     bool            `json:"-"`
 }
 
 func NewClient(clientId, serviceId, tenant string, endpoints []string, meta map[string]any) (api.Client, error) {
@@ -67,4 +68,10 @@ func (c *client) State() api.ClientState {
 }
 func (c *client) SetState(state api.ClientState) {
 	c.State_ = state
+}
+func (c *client) SetDirty(value bool) {
+	c.Dirty_ = value
+}
+func (c *client) IsDirty() bool {
+	return c.Dirty_
 }

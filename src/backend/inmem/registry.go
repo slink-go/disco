@@ -66,6 +66,7 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 		}
 	}
 	rs.tenants[tenant].Clients[clientId] = c
+	rs.update(c)
 	return &api.JoinResponse{
 		ClientId:     clientId,
 		PingInterval: rs.pingInterval,
@@ -125,9 +126,13 @@ func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
 		return api.Pong{}, api.NewClientNotFoundError(clientId)
 	}
 	v.Ping()
-	// if v.needsUpdate return PongTypeChanged
+	response := api.PongTypeOk
+	if v.IsDirty() {
+		v.SetDirty(false)
+		response = api.PongTypeChanged
+	}
 	return api.Pong{
-		Response: api.PongTypeOk,
+		Response: response,
 	}, nil
 }
 
@@ -162,13 +167,13 @@ func (rs *inMemRegistry) run(cfg *config.AppConfig) {
 			time.Sleep(time.Second)
 			for _, t := range rs.tenants {
 				go func() {
-					rs.runner(rs, cfg, t)
+					rs.runner(cfg, t)
 				}()
 			}
 		}
 	}()
 }
-func (rs *inMemRegistry) runner(registry api.Registry, cfg *config.AppConfig, tenant *common.Tenant) {
+func (rs *inMemRegistry) runner(cfg *config.AppConfig, tenant *common.Tenant) {
 	for _, c := range tenant.Clients {
 		interval := time.Now().Sub(c.LastSeen())
 		if time.Duration(cfg.RemoveThreshold)*cfg.PingDuration < interval {
@@ -187,12 +192,14 @@ func (rs *inMemRegistry) runner(registry api.Registry, cfg *config.AppConfig, te
 func (rs *inMemRegistry) failing(client api.Client) {
 	if client.State() != api.ClientStateFailing {
 		client.SetState(api.ClientStateFailing)
+		rs.update(client)
 		logger.Info("client %s failing", client.ClientId())
 	}
 }
 func (rs *inMemRegistry) down(client api.Client) {
 	if client.State() != api.ClientStateDown {
 		client.SetState(api.ClientStateDown)
+		rs.update(client)
 		logger.Info("client %s down", client.ClientId())
 	}
 }
@@ -206,6 +213,18 @@ func (rs *inMemRegistry) remove(client api.Client) {
 		if ok {
 			delete(t.Clients, client.ClientId())
 			return
+		}
+	}
+	rs.update(client)
+}
+func (rs *inMemRegistry) update(client api.Client) {
+	t, ok := rs.tenants[client.Tenant()]
+	if !ok {
+		return
+	}
+	for _, c := range t.Clients {
+		if c.ClientId() != client.ClientId() {
+			c.SetDirty(true)
 		}
 	}
 }
