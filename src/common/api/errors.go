@@ -96,3 +96,26 @@ func (e *ErrAlreadyRegistered) Is(tgt error) bool {
 }
 
 // endregion
+// region - ErrMaxClientsReached
+
+type ErrMaxClientsReached struct {
+	message string
+}
+
+func NewMaxClientsReachedError(max int) error {
+	return &ErrMaxClientsReached{
+		message: fmt.Sprintf("maximum clients reached (%d)", max),
+	}
+}
+func (e *ErrMaxClientsReached) Error() string {
+	return e.message
+}
+func (e *ErrMaxClientsReached) Is(tgt error) bool {
+	_, ok := tgt.(*ErrClientNotFound)
+	if !ok {
+		return false
+	}
+	return true
+}
+
+// endregion

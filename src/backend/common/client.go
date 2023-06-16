@@ -9,13 +9,14 @@ import (
 type client struct {
 	ClientId_  string          `json:"client_id"`
 	ServiceId_ string          `json:"service_id"`
+	Tenant_    string          `json:"tenant,omitempty"`
 	Endpoints_ []api.Endpoint  `json:"endpoints,omitempty"`
 	Meta_      map[string]any  `json:"meta,omitempty"`
 	LastSeen_  time.Time       `json:"-"`
 	State_     api.ClientState `json:"state"`
 }
 
-func NewClient(clientId, serviceId string, endpoints []string, meta map[string]any) (api.Client, error) {
+func NewClient(clientId, serviceId, tenant string, endpoints []string, meta map[string]any) (api.Client, error) {
 	var ep []api.Endpoint
 	for _, u := range endpoints {
 		v, err := api.NewEndpoint(u)
@@ -32,6 +33,7 @@ func NewClient(clientId, serviceId string, endpoints []string, meta map[string]a
 		Meta_:      meta,
 		LastSeen_:  time.Now(),
 		State_:     api.ClientStateStarting,
+		Tenant_:    tenant,
 	}, nil
 }
 
@@ -40,6 +42,9 @@ func (c *client) ClientId() string {
 }
 func (c *client) ServiceId() string {
 	return c.ServiceId_
+}
+func (c *client) Tenant() string {
+	return c.Tenant_
 }
 func (c *client) Endpoints() []api.Endpoint {
 	return c.Endpoints_

@@ -11,6 +11,7 @@ import (
 // region - types
 
 const TenantKey = "tenant"
+const TenantDefault = "default"
 
 type PongType uint8
 
@@ -207,6 +208,7 @@ func NewEndpoint(url string) (Endpoint, error) {
 type Client interface {
 	ClientId() string
 	ServiceId() string
+	Tenant() string
 	Endpoints() []Endpoint
 	Meta() map[string]any
 	Ping()

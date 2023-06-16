@@ -19,6 +19,7 @@ type AppConfig struct {
 	FailingThreshold  uint16
 	DownThreshold     uint16
 	RemoveThreshold   uint16
+	MaxClients        int
 }
 
 func Load() *AppConfig {
@@ -34,6 +35,7 @@ func Load() *AppConfig {
 		FailingThreshold:  uint16(config.ReadIntOrDefault("DISCO_CLIENT_FAILING_THRESHOLD", 2)),
 		DownThreshold:     uint16(config.ReadIntOrDefault("DISCO_CLIENT_DOWN_THRESHOLD", 4)),
 		RemoveThreshold:   uint16(config.ReadIntOrDefault("DISCO_CLIENT_REMOVE_THRESHOLD", 8)),
+		MaxClients:        config.ReadIntOrDefault("DISCO_MAX_CLIENTS", 1024),
 	}
 
 	logger.Info("[cfg] monitoring enabled: %v", cfg.MonitoringEnabled)
@@ -42,6 +44,7 @@ func Load() *AppConfig {
 	logger.Info("[cfg] failing threshold: %v", cfg.FailingThreshold)
 	logger.Info("[cfg] down threshold: %v", cfg.DownThreshold)
 	logger.Info("[cfg] remove threshold: %v", cfg.RemoveThreshold)
+	logger.Info("[cfg] max clients: %v", cfg.MaxClients)
 	logger.Info("[cfg] secret key: %v", cfg.SecretKey)
 	logger.Info("[cfg] backend type: %v", cfg.BackendType)
 	logger.Info("[cfg] plugin dir: %v", cfg.PluginDir)
