@@ -194,7 +194,7 @@ func (s *restServiceImpl) handleList(w http.ResponseWriter, r *http.Request) {
 func (s *restServiceImpl) handleGetToken(w http.ResponseWriter, r *http.Request) {
 	//time.Sleep(time.Duration(rand.Intn(5)) * time.Second) // random delay
 	tenant := mux.Vars(r)["tenant"]
-	token, err := s.jwt.Generate(r.RemoteAddr, tenant, time.Second*30)
+	token, err := s.jwt.Generate(r.RemoteAddr, tenant, time.Minute*30)
 	if err != nil {
 		writeResponseError(w, http.StatusInternalServerError, err)
 		return
