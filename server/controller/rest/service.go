@@ -115,7 +115,7 @@ func (s *restServiceImpl) authMiddleware(next http.HandlerFunc) http.HandlerFunc
 		} else {
 			r = r.WithContext(context.WithValue(r.Context(), api.TenantKey, api.TenantDefault))
 		}
-		//logger.Info("tenant: %v", r.Context().Value(api.TenantKey))
+		//logger.Info("[auth] tenant: %v, %v %v", r.Context().Value(api.TenantKey), r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
 	}
 }
@@ -192,6 +192,7 @@ func (s *restServiceImpl) handleList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *restServiceImpl) handleGetToken(w http.ResponseWriter, r *http.Request) {
+	//time.Sleep(time.Duration(rand.Intn(5)) * time.Second) // random delay
 	tenant := mux.Vars(r)["tenant"]
 	token, err := s.jwt.Generate(r.RemoteAddr, tenant, time.Second*30)
 	if err != nil {

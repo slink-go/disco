@@ -158,6 +158,7 @@ type JoinRequest struct {
 
 type Pong struct {
 	Response PongType `json:"response"`
+	Error    string   `json:"error"`
 }
 
 type JoinResponse struct {

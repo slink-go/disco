@@ -43,6 +43,8 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	rs.mutex.Lock()
 	defer rs.mutex.Unlock()
 
+	logger.Debug("[registry][join] client join")
+
 	if len(rs.clients) >= rs.maxClients {
 		return nil, api.NewMaxClientsReachedError(rs.maxClients)
 	}
@@ -67,6 +69,7 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	}
 	rs.tenants[tenant].Clients[clientId] = c
 	rs.update(c)
+	logger.Debug("[registry][join] client %s joined", c.ClientId())
 	return &api.JoinResponse{
 		ClientId:     clientId,
 		PingInterval: rs.pingInterval,
@@ -75,11 +78,12 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 func (rs *inMemRegistry) Leave(ctx context.Context, clientId string) error {
 	rs.mutex.Lock()
 	defer rs.mutex.Unlock()
+	logger.Debug("[registry][leave] client %s leave", clientId)
 	_, ok := rs.clients[clientId]
 	if !ok {
 		return api.NewClientNotFoundError(clientId)
 	}
-	logger.Debug("remove client %s", clientId)
+	logger.Debug("[registry][leave] remove client %s", clientId)
 	delete(rs.clients, clientId)
 	tenant := ctx.Value(api.TenantKey).(string)
 	if tenant != "" {
@@ -93,6 +97,7 @@ func (rs *inMemRegistry) Leave(ctx context.Context, clientId string) error {
 		}
 		delete(rs.tenants[tenant].Clients, clientId)
 	}
+	logger.Debug("[registry][leave] client %s left", clientId)
 	return nil
 }
 func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
@@ -101,6 +106,7 @@ func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 	result := []api.Client{}
 	var clients map[string]api.Client
 	tenant := ctx.Value(api.TenantKey).(string)
+	logger.Debug("[registry][list] list for %v", tenant)
 	if tenant == api.TenantDefault || tenant == "" {
 		logger.Debug("[list] list all")
 		clients = rs.clients
@@ -116,11 +122,13 @@ func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 	for _, t := range clients {
 		result = append(result, t)
 	}
+	logger.Debug("[registry][list] list for %v (%d)", tenant, len(result))
 	return result
 }
 func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
 	rs.mutex.Lock()
 	defer rs.mutex.Unlock()
+	logger.Debug("[registry][ping] client '%s' ping", clientId)
 	v, ok := rs.clients[clientId]
 	if !ok {
 		return api.Pong{}, api.NewClientNotFoundError(clientId)
@@ -131,6 +139,7 @@ func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
 		v.SetDirty(false)
 		response = api.PongTypeChanged
 	}
+	logger.Debug("[registry][ping] client '%s' ping: '%s'", clientId, response)
 	return api.Pong{
 		Response: response,
 	}, nil
@@ -166,9 +175,7 @@ func (rs *inMemRegistry) run(cfg *config.AppConfig) {
 		for {
 			time.Sleep(time.Second)
 			for _, t := range rs.tenants {
-				go func() {
-					rs.runner(cfg, t)
-				}()
+				go rs.runner(cfg, t)
 			}
 		}
 	}()
