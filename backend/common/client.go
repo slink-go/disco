@@ -53,12 +53,14 @@ func (c *client) Endpoints() []api.Endpoint {
 func (c *client) Meta() map[string]any {
 	return c.Meta_
 }
-func (c *client) Ping() {
+func (c *client) Ping() bool {
 	c.LastSeen_ = time.Now()
 	if c.State() != api.ClientStateUp {
 		c.SetState(api.ClientStateUp)
 		logger.Info("client %s up", c.ClientId())
+		return true
 	}
+	return false
 }
 func (c *client) LastSeen() time.Time {
 	return c.LastSeen_

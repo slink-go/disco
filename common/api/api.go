@@ -211,7 +211,7 @@ type Client interface {
 	Tenant() string
 	Endpoints() []Endpoint
 	Meta() map[string]any
-	Ping()
+	Ping() bool
 	LastSeen() time.Time
 	State() ClientState
 	SetState(state ClientState)

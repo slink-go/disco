@@ -76,29 +76,36 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	}, nil
 }
 func (rs *inMemRegistry) Leave(ctx context.Context, clientId string) error {
-	rs.mutex.Lock()
-	defer rs.mutex.Unlock()
-	logger.Debug("[registry][leave] client %s leave", clientId)
-	_, ok := rs.clients[clientId]
+	client, ok := rs.clients[clientId]
 	if !ok {
 		return api.NewClientNotFoundError(clientId)
 	}
 	logger.Debug("[registry][leave] remove client %s", clientId)
-	delete(rs.clients, clientId)
-	tenant := ctx.Value(api.TenantKey).(string)
-	if tenant != "" {
-		_, ok = rs.tenants[tenant]
-		if !ok {
-			return api.NewTenantNotFoundError(tenant)
-		}
-		_, ok = rs.tenants[tenant].Clients[clientId]
-		if !ok {
-			return api.NewTenantsClientNotFoundError(clientId)
-		}
-		delete(rs.tenants[tenant].Clients, clientId)
-	}
-	logger.Debug("[registry][leave] client %s left", clientId)
+	rs.remove(client)
 	return nil
+	//rs.mutex.Lock()
+	//defer rs.mutex.Unlock()
+	//logger.Debug("[registry][leave] client %s leave", clientId)
+	//_, ok := rs.clients[clientId]
+	//if !ok {
+	//	return api.NewClientNotFoundError(clientId)
+	//}
+	//logger.Debug("[registry][leave] remove client %s", clientId)
+	//delete(rs.clients, clientId)
+	//tenant := ctx.Value(api.TenantKey).(string)
+	//if tenant != "" {
+	//	_, ok = rs.tenants[tenant]
+	//	if !ok {
+	//		return api.NewTenantNotFoundError(tenant)
+	//	}
+	//	_, ok = rs.tenants[tenant].Clients[clientId]
+	//	if !ok {
+	//		return api.NewTenantsClientNotFoundError(clientId)
+	//	}
+	//	delete(rs.tenants[tenant].Clients, clientId)
+	//}
+	//logger.Debug("[registry][leave] client %s left", clientId)
+	//return nil
 }
 func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 	rs.mutex.RLock()
@@ -128,12 +135,13 @@ func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
 	rs.mutex.Lock()
 	defer rs.mutex.Unlock()
-	logger.Debug("[registry][ping] client '%s' ping", clientId)
 	v, ok := rs.clients[clientId]
 	if !ok {
 		return api.Pong{}, api.NewClientNotFoundError(clientId)
 	}
-	v.Ping()
+	if v.Ping() {
+		rs.update(v)
+	}
 	response := api.PongTypeOk
 	if v.IsDirty() {
 		v.SetDirty(false)
@@ -214,6 +222,7 @@ func (rs *inMemRegistry) remove(client api.Client) {
 	rs.mutex.Lock()
 	defer rs.mutex.Unlock()
 	logger.Info("removing client %s", client.ClientId())
+	defer rs.update(client)
 	delete(rs.clients, client.ClientId())
 	for _, t := range rs.tenants {
 		_, ok := t.Clients[client.ClientId()]
@@ -222,7 +231,7 @@ func (rs *inMemRegistry) remove(client api.Client) {
 			return
 		}
 	}
-	rs.update(client)
+
 }
 func (rs *inMemRegistry) update(client api.Client) {
 	t, ok := rs.tenants[client.Tenant()]
@@ -230,8 +239,7 @@ func (rs *inMemRegistry) update(client api.Client) {
 		return
 	}
 	for _, c := range t.Clients {
-		if c.ClientId() != client.ClientId() {
-			c.SetDirty(true)
-		}
+		logger.Notice("set dirty %s", c.ClientId())
+		c.SetDirty(true)
 	}
 }
