@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/ws-slink/disco/common/util/logger"
+	"github.com/slink-go/disco/common/util/logger"
 	"github.com/xhit/go-str2duration/v2"
 	"os"
 	"strconv"

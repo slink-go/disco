@@ -2,8 +2,8 @@ package config
 
 import (
 	"github.com/joho/godotenv"
-	"github.com/ws-slink/disco/common/config"
-	"github.com/ws-slink/disco/common/util/logger"
+	"github.com/slink-go/disco/common/config"
+	"github.com/slink-go/disco/common/util/logger"
 	"github.com/xhit/go-str2duration/v2"
 	"strings"
 	"time"

@@ -1,4 +1,4 @@
-module github.com/ws-slink/disco/common
+module github.com/slink-go/disco/common
 
 go 1.20
 

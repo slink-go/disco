@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/ws-slink/disco/server/config"
-	"github.com/ws-slink/disco/server/controller/rest"
-	"github.com/ws-slink/disco/server/jwt"
-	"github.com/ws-slink/disco/server/registry"
+	"github.com/slink-go/disco/server/config"
+	"github.com/slink-go/disco/server/controller/rest"
+	"github.com/slink-go/disco/server/jwt"
+	"github.com/slink-go/disco/server/registry"
 )
 
 func main() {

@@ -1,3 +1,3 @@
-module github.com/ws-slink/disco/backend
+module github.com/slink-go/disco/backend
 
 go 1.20

@@ -1,3 +1,3 @@
-module github.com/ws-slink/disco
+module github.com/slink-go/disco
 
 go 1.20

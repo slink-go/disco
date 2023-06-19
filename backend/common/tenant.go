@@ -1,6 +1,6 @@
 package common
 
-import "github.com/ws-slink/disco/common/api"
+import "github.com/slink-go/disco/common/api"
 
 type Tenant struct {
 	Name    string

@@ -2,8 +2,8 @@ package registry
 
 import (
 	"fmt"
-	"github.com/ws-slink/disco/common/api"
-	"github.com/ws-slink/disco/server/config"
+	"github.com/slink-go/disco/common/api"
+	"github.com/slink-go/disco/server/config"
 	"plugin"
 )
 

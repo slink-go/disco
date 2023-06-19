@@ -1,4 +1,4 @@
-module github.com/ws-slink/disco/server
+module github.com/slink-go/disco/server
 
 go 1.20
 
