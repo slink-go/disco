@@ -6,6 +6,7 @@ import (
 	"github.com/slink-go/disco/backend/common"
 	"github.com/slink-go/disco/common/api"
 	"github.com/slink-go/disco/server/config"
+	"github.com/slink-go/logger"
 	"reflect"
 	"sync"
 	"time"

@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/slink-go/disco/common/api"
 	"github.com/slink-go/disco/server/jwt"
+	"github.com/slink-go/logger"
 	"log"
 	"net/http"
 	"strings"
