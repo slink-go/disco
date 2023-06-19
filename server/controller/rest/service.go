@@ -12,10 +12,10 @@ import (
 	"github.com/slink-go/disco/common/api"
 	"github.com/slink-go/disco/server/jwt"
 	"github.com/slink-go/logger"
+	"github.com/xhit/go-str2duration/v2"
 	"log"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // region - REST service
@@ -194,7 +194,16 @@ func (s *restServiceImpl) handleList(w http.ResponseWriter, r *http.Request) {
 func (s *restServiceImpl) handleGetToken(w http.ResponseWriter, r *http.Request) {
 	//time.Sleep(time.Duration(rand.Intn(5)) * time.Second) // random delay
 	tenant := mux.Vars(r)["tenant"]
-	token, err := s.jwt.Generate(r.RemoteAddr, tenant, time.Minute*30)
+	durationStr := r.URL.Query().Get("ttl")
+	if durationStr == "" {
+		durationStr = "30m"
+	}
+	dur, err := str2duration.ParseDuration(durationStr)
+	if err != nil {
+		writeResponseError(w, http.StatusInternalServerError, err)
+		return
+	}
+	token, err := s.jwt.Generate(r.RemoteAddr, tenant, dur)
 	if err != nil {
 		writeResponseError(w, http.StatusInternalServerError, err)
 		return
