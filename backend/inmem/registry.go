@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/slink-go/disco/backend/common"
 	"github.com/slink-go/disco/common/api"
-	"github.com/slink-go/disco/common/util/logger"
 	"github.com/slink-go/disco/server/config"
 	"reflect"
 	"sync"

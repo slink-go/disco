@@ -2,7 +2,6 @@ package common
 
 import (
 	"github.com/slink-go/disco/common/api"
-	"github.com/slink-go/disco/common/util/logger"
 	"time"
 )
 

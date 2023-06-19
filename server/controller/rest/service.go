@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/slink-go/disco/common/api"
-	"github.com/slink-go/disco/common/util/logger"
 	"github.com/slink-go/disco/server/jwt"
 	"log"
 	"net/http"
