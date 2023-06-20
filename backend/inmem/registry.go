@@ -239,7 +239,6 @@ func (rs *inMemRegistry) update(client api.Client) {
 		return
 	}
 	for _, c := range t.Clients {
-		logger.Notice("set dirty %s", c.ClientId())
 		c.SetDirty(true)
 	}
 }

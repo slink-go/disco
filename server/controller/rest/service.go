@@ -131,6 +131,7 @@ func (s *restServiceImpl) handleJoin(w http.ResponseWriter, r *http.Request) {
 		writeResponseStr(w, http.StatusBadRequest, fmt.Sprintf("error reading request: %s", err.Error()))
 		return
 	}
+	rq.ServiceId = strings.ToUpper(rq.ServiceId)
 	resp, err := s.registry.Join(r.Context(), rq)
 	if err != nil {
 		writeResponseMessage(w, http.StatusBadRequest, "error", fmt.Sprintf("could not join: %s", err.Error()))
