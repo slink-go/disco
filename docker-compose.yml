@@ -16,9 +16,8 @@ x-deploy: &deploy
 
 services:
   disco:
-    <<: *deploy
-    <<: *log
-    image: slink/disco:0.0.1-alpine
+    <<: [*deploy, *log]
+    image: slinkgo/disco:alpine
     container_name: disco
     ports:
       - "127.0.0.1:8080:8080"
