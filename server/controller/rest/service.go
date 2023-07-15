@@ -73,7 +73,7 @@ func (s *restServiceImpl) configureRouter() *mux.Router {
 		router.Path("/metrics").Handler(promhttp.Handler())
 	}
 
-	router.HandleFunc("/api/token/{tenant}", s.handleGetToken).Methods("GET")
+	//router.HandleFunc("/api/token/{tenant}", s.handleGetToken).Methods("GET")
 
 	router.HandleFunc("/api/join", s.authMiddleware(s.handleJoin)).Methods("POST")
 	router.HandleFunc("/api/leave", s.authMiddleware(s.handleLeave)).Methods("POST")
