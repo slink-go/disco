@@ -27,7 +27,7 @@ func main() {
 	logger.Info("[cfg] down threshold: %v", cfg.DownThreshold)
 	logger.Info("[cfg] remove threshold: %v", cfg.RemoveThreshold)
 	logger.Info("[cfg] max clients: %v", cfg.MaxClients)
-	logger.Info("[cfg] secret key: %v", cfg.SecretKey)
+	//logger.Info("[cfg] secret key: %v", cfg.SecretKey)
 	logger.Info("[cfg] backend type: %v", cfg.BackendType)
 	logger.Info("[cfg] plugin dir: %v", cfg.PluginDir)
 
