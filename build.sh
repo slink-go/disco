@@ -4,7 +4,7 @@ export DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 cd "${DIR}" || exit 1
 
 VERSION_SHORT=$(echo "$(cat ${DIR}/build/VERSION)")
-VERSION_LONG=$(echo "v$(cat ${DIR}/build/VERSION) ($(git describe --tags --abbrev=8 --dirty --always --long))")
+VERSION_LONG=$(echo "v$(cat ${DIR}/build/VERSION) ($(git describe --tags --abbrev=8 --dirty --always))")
 
 # https://www.docker.com/blog/multi-arch-build-and-images-the-simple-way/
 PLATFORMS=linux/arm/v7,linux/arm64/v8,linux/amd64
