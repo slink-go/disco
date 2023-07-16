@@ -35,6 +35,7 @@ func NewClient(clientId, serviceId, tenant string, endpoints []string, meta map[
 		LastSeen_:  time.Now(),
 		State_:     api.ClientStateStarting,
 		Tenant_:    tenant,
+		Dirty_:     true,
 	}, nil
 }
 
@@ -57,7 +58,7 @@ func (c *client) Ping() bool {
 	c.LastSeen_ = time.Now()
 	if c.State() != api.ClientStateUp {
 		c.SetState(api.ClientStateUp)
-		logger.Info("client %s up", c.ClientId())
+		logger.Info("client %s (%s) up", c.ClientId(), c.ServiceId())
 		return true
 	}
 	return false

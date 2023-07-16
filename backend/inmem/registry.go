@@ -8,6 +8,7 @@ import (
 	"github.com/slink-go/disco/server/config"
 	"github.com/slink-go/logger"
 	"reflect"
+	"sort"
 	"sync"
 	"time"
 )
@@ -130,6 +131,13 @@ func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 		result = append(result, t)
 	}
 	logger.Debug("[registry][list] list for %v (%d)", tenant, len(result))
+	sort.Slice(result, func(a, b int) bool {
+		if result[a].ServiceId() != result[b].ServiceId() {
+			return result[a].ServiceId() < result[b].ServiceId()
+		} else {
+			return result[a].ClientId() < result[b].ClientId()
+		}
+	})
 	return result
 }
 func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
