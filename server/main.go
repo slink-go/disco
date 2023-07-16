@@ -22,6 +22,7 @@ func main() {
 
 	logger.Info("[cfg] monitoring enabled: %v", cfg.MonitoringEnabled)
 	logger.Info("[cfg] service port: %v", cfg.ServicePort)
+	logger.Info("[cfg] service secured: %v", cfg.Secured)
 	logger.Info("[cfg] ping duration: %v", str2duration.String(cfg.PingDuration))
 	logger.Info("[cfg] failing threshold: %v", cfg.FailingThreshold)
 	logger.Info("[cfg] down threshold: %v", cfg.DownThreshold)
@@ -37,7 +38,7 @@ func main() {
 	}
 	r := b.Init(cfg)
 
-	restSvc, err := rest.Init(j, r, cfg.MonitoringEnabled)
+	restSvc, err := rest.Init(j, r, cfg)
 	if err != nil {
 		panic(err)
 	}

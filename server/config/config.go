@@ -9,6 +9,9 @@ import (
 
 type AppConfig struct {
 	MonitoringEnabled bool
+	Secured           bool
+	SslCertFile       string
+	SslCertKey        string
 	ServicePort       uint16
 	PingDuration      time.Duration
 	SecretKey         string
@@ -25,6 +28,9 @@ func Load() *AppConfig {
 
 	cfg := AppConfig{
 		MonitoringEnabled: config.ReadBooleanOrDefault("DISCO_MONITORING_ENABLED", false),
+		Secured:           config.ReadBooleanOrDefault("DISCO_SERVICE_SECURED", false),
+		SslCertFile:       config.ReadString("DISCO_CERT_FILE"),
+		SslCertKey:        config.ReadString("DISCO_CERT_KEY"),
 		ServicePort:       uint16(config.ReadIntOrDefault("DISCO_SERVICE_PORT", 8080)),
 		PingDuration:      config.ReadDurationOrDefault("DISCO_PING_INTERVAL", 15*time.Second),
 		SecretKey:         config.ReadString("DISCO_SECRET_KEY"),

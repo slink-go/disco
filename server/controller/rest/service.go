@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,9 +11,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/slink-go/disco/common/api"
+	"github.com/slink-go/disco/server/config"
 	"github.com/slink-go/disco/server/jwt"
 	"github.com/slink-go/logger"
 	"github.com/xhit/go-str2duration/v2"
+	"golang.org/x/crypto/acme/autocert"
 	"log"
 	"net/http"
 	"strings"
@@ -24,11 +27,11 @@ type Service interface {
 	Run(address string)
 }
 
-func Init(jwt jwt.Jwt, registry api.Registry, monitoringEnabled bool) (Service, error) {
+func Init(jwt jwt.Jwt, registry api.Registry, cfg *config.AppConfig) (Service, error) {
 
 	var httpDuration *prometheus.HistogramVec
 
-	if monitoringEnabled {
+	if cfg.MonitoringEnabled {
 		httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 			Name: "disco_http_duration_seconds",
 			Help: "Duration of HTTP requests.",
@@ -36,24 +39,36 @@ func Init(jwt jwt.Jwt, registry api.Registry, monitoringEnabled bool) (Service, 
 	}
 
 	return &restServiceImpl{
-		jwt:               jwt,
-		registry:          registry,
-		httpDurationHist:  httpDuration,
-		monitoringEnabled: monitoringEnabled,
+		jwt:              jwt,
+		registry:         registry,
+		httpDurationHist: httpDuration,
+		cfg:              cfg,
 	}, nil
 
 }
 
 type restServiceImpl struct {
-	jwt               jwt.Jwt
-	registry          api.Registry
-	httpDurationHist  *prometheus.HistogramVec
-	monitoringEnabled bool
+	jwt              jwt.Jwt
+	registry         api.Registry
+	httpDurationHist *prometheus.HistogramVec
+	cfg              *config.AppConfig
 }
 
 func (s *restServiceImpl) Run(address string) {
 	router := s.configureRouter()
 	logger.Info("Disco service started on %s", address)
+	if s.cfg.Secured {
+		if s.cfg.SslCertFile != "" && s.cfg.SslCertKey != "" {
+			s.serveSslWithCert(address, router)
+		} else {
+			s.serveSslWithLetsEncrypt(address, router)
+		}
+	} else {
+		s.serveInsecureHttp(address, router)
+	}
+}
+
+func (s *restServiceImpl) serveInsecureHttp(address string, router *mux.Router) {
 	log.Fatal(
 		http.ListenAndServe(
 			address,
@@ -64,11 +79,41 @@ func (s *restServiceImpl) Run(address string) {
 		),
 	)
 }
+func (s *restServiceImpl) serveSslWithCert(address string, router *mux.Router) {
+	log.Fatal(
+		http.ListenAndServeTLS(
+			address,
+			s.cfg.SslCertFile,
+			s.cfg.SslCertKey,
+			router,
+		),
+	)
+}
+func (s *restServiceImpl) serveSslWithLetsEncrypt(address string, router *mux.Router) {
+	certManager := autocert.Manager{
+		Prompt: autocert.AcceptTOS,
+		//HostPolicy: autocert.HostWhitelist("example.com"),
+		Cache: autocert.DirCache("/tmp/certs"), //Folder for storing certificates
+	}
+	server := &http.Server{
+		//Addr:    ":https",
+		Addr:    address,
+		Handler: router,
+		TLSConfig: &tls.Config{
+			GetCertificate: certManager.GetCertificate,
+		},
+	}
+	go func() {
+		_ = http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+	}()
+	log.Fatal(server.ListenAndServeTLS("", "")) //Key and cert are coming from Let's Encrypt
+}
+
 func (s *restServiceImpl) configureRouter() *mux.Router {
 	router := mux.NewRouter()
 
 	// https://stackoverflow.com/questions/64768950/how-to-use-specific-middleware-for-specific-routes-in-a-get-subrouter-in-gorilla
-	if s.monitoringEnabled {
+	if s.cfg.MonitoringEnabled {
 		router.Use(s.prometheusMiddleware)
 		router.Path("/metrics").Handler(promhttp.Handler())
 	}
