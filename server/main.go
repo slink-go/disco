@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"github.com/slink-go/disco/server/config"
@@ -12,6 +13,9 @@ import (
 	"time"
 )
 
+//go:embed logo.txt
+var discoLogo string
+
 func main() {
 
 	if generateToken() {
@@ -20,9 +24,16 @@ func main() {
 
 	cfg, j := prepare()
 
+	// Print Version
+	fmt.Println("")
+	fmt.Println(discoLogo)
+	fmt.Println("")
+
 	logger.Info("[cfg] monitoring enabled: %v", cfg.MonitoringEnabled)
 	logger.Info("[cfg] service port: %v", cfg.ServicePort)
 	logger.Info("[cfg] service secured: %v", cfg.Secured)
+	logger.Info("[cfg] certificate file: %v", cfg.SslCertFile)
+	logger.Info("[cfg] certificate key: %v", cfg.SslCertKey)
 	logger.Info("[cfg] ping duration: %v", str2duration.String(cfg.PingDuration))
 	logger.Info("[cfg] failing threshold: %v", cfg.FailingThreshold)
 	logger.Info("[cfg] down threshold: %v", cfg.DownThreshold)
