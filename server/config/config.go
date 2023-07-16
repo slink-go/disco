@@ -21,6 +21,8 @@ type AppConfig struct {
 	DownThreshold     uint16
 	RemoveThreshold   uint16
 	MaxClients        int
+	RequestRate       int
+	RequestBurst      int
 }
 
 func Load() *AppConfig {
@@ -40,6 +42,8 @@ func Load() *AppConfig {
 		DownThreshold:     uint16(config.ReadIntOrDefault("DISCO_CLIENT_DOWN_THRESHOLD", 4)),
 		RemoveThreshold:   uint16(config.ReadIntOrDefault("DISCO_CLIENT_REMOVE_THRESHOLD", 8)),
 		MaxClients:        config.ReadIntOrDefault("DISCO_MAX_CLIENTS", 1024),
+		RequestRate:       config.ReadIntOrDefault("DISCO_LIMIT_RATE", 10),
+		RequestBurst:      config.ReadIntOrDefault("DISCO_LIMIT_BURST", 20),
 	}
 
 	return &cfg

@@ -17,8 +17,9 @@ TODO:
 - java client
   - plain java
   - spring boot starter
-- simplify client endpoints registration: handle port-only endpoints from clients (remote-ip, X-CLIENT-IP, etc)
-- add SSL support
+- simplify client endpoints registration: handle port-only endpoints from clients
+  (remote-ip, X-Forwarded-For / X-Real-IP / X-CLIENT-IP, etc)
 - implement redis backend
 - implement etcd backend
 - implement multinode-consensus backend
+- fix Let's Encrypt support 

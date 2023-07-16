@@ -16,6 +16,7 @@ import (
 	"github.com/slink-go/logger"
 	"github.com/xhit/go-str2duration/v2"
 	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/time/rate"
 	"log"
 	"net/http"
 	"strings"
@@ -43,8 +44,8 @@ func Init(jwt jwt.Jwt, registry api.Registry, cfg *config.AppConfig) (Service, e
 		registry:         registry,
 		httpDurationHist: httpDuration,
 		cfg:              cfg,
+		limiter:          rate.NewLimiter(rate.Limit(cfg.RequestRate), cfg.RequestBurst),
 	}, nil
-
 }
 
 type restServiceImpl struct {
@@ -52,6 +53,7 @@ type restServiceImpl struct {
 	registry         api.Registry
 	httpDurationHist *prometheus.HistogramVec
 	cfg              *config.AppConfig
+	limiter          *rate.Limiter
 }
 
 func (s *restServiceImpl) Run(address string) {
@@ -112,6 +114,8 @@ func (s *restServiceImpl) serveSslWithLetsEncrypt(address string, router *mux.Ro
 func (s *restServiceImpl) configureRouter() *mux.Router {
 	router := mux.NewRouter()
 
+	router.Use(s.rateLimiterMiddleware)
+
 	// https://stackoverflow.com/questions/64768950/how-to-use-specific-middleware-for-specific-routes-in-a-get-subrouter-in-gorilla
 	if s.cfg.MonitoringEnabled {
 		router.Use(s.prometheusMiddleware)
@@ -141,7 +145,15 @@ func (s *restServiceImpl) prometheusMiddleware(next http.Handler) http.Handler {
 		timer.ObserveDuration()
 	})
 }
-
+func (s *restServiceImpl) rateLimiterMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.limiter.Allow() == false {
+			http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 func (s *restServiceImpl) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := r.Header.Get("Authorization")
