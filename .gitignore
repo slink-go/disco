@@ -3,4 +3,4 @@ build/
 scripts/
 cert/*.crt
 cert/*.key
-
+server/logo.txt
