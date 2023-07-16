@@ -194,6 +194,7 @@ func (s *restServiceImpl) authMiddleware(next http.HandlerFunc) http.HandlerFunc
 	}
 }
 func (s *restServiceImpl) basicAuth(r *http.Request) (string, error) {
+	//https://www.alexedwards.net/blog/basic-authentication-in-go
 	username, password, ok := r.BasicAuth()
 	if !ok {
 		return "", ErrUnauthorized

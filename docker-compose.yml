@@ -17,10 +17,11 @@ x-deploy: &deploy
 services:
   disco:
     <<: [*deploy, *log]
-    image: slinkgo/disco:alpine
+    image: slinkgo/disco
     container_name: disco
     ports:
-      - "127.0.0.1:8443:8443"
+      - "127.0.0.1:8080:8080"
     environment:
-      - LOGGING_LEVEL=DEBUG
+      - DISCO_USERS=admin:admin,user:user
+      - LOGGING_LEVEL=INFO
 #    restart: unless-stopped
