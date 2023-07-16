@@ -1,12 +1,18 @@
 package config
 
 import (
+	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/slink-go/disco/common/config"
+	"os"
 	"strings"
 	"time"
 )
 
+type Credentials struct {
+	Login    string
+	Password string
+}
 type AppConfig struct {
 	MonitoringEnabled bool
 	Secured           bool
@@ -23,6 +29,7 @@ type AppConfig struct {
 	MaxClients        int
 	RequestRate       int
 	RequestBurst      int
+	RegisteredUsers   []Credentials
 }
 
 func Load() *AppConfig {
@@ -46,5 +53,31 @@ func Load() *AppConfig {
 		RequestBurst:      config.ReadIntOrDefault("DISCO_LIMIT_BURST", 20),
 	}
 
+	cfg.RegisteredUsers = parseConfiguredUsers(os.Getenv("DISCO_USERS"))
+
 	return &cfg
+}
+func (cfg *AppConfig) Users() string {
+	var result = ""
+	for _, c := range cfg.RegisteredUsers {
+		result = fmt.Sprintf("%s%s,", result, c.Login)
+	}
+	return strings.TrimSuffix(result, ",")
+}
+
+func parseConfiguredUsers(users string) []Credentials {
+	if users == "" {
+		return nil
+	}
+	var result []Credentials
+	for _, p := range strings.Split(users, ",") {
+		creds := strings.Split(p, ":")
+		if len(creds) == 2 {
+			result = append(result, Credentials{
+				Login:    strings.TrimSpace(creds[0]),
+				Password: strings.TrimSpace(creds[1]),
+			})
+		}
+	}
+	return result
 }

@@ -41,6 +41,7 @@ func main() {
 	logger.Info("[cfg] max clients: %v", cfg.MaxClients)
 	logger.Info("[cfg] rate limit: %v", cfg.RequestRate)
 	logger.Info("[cfg] burst limit: %v", cfg.RequestBurst)
+	logger.Info("[cfg] registered users: %v", cfg.Users())
 	//logger.Info("[cfg] secret key: %v", cfg.SecretKey)
 	logger.Info("[cfg] backend type: %v", cfg.BackendType)
 	logger.Info("[cfg] plugin dir: %v", cfg.PluginDir)

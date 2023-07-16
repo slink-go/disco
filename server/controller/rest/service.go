@@ -2,6 +2,8 @@ package rest
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -135,6 +137,12 @@ func (s *restServiceImpl) configureRouter() *mux.Router {
 // endregion
 // region - middleware
 
+var (
+	ErrUnauthorized          = errors.New("unauthorized")
+	ErrBasicAuthNotSupported = errors.New("basic authorization is not enabled")
+	ErrNonTokenAuth          = errors.New("non-token auth attempted")
+)
+
 // https://www.robustperception.io/prometheus-middleware-for-gorilla-mux/
 func (s *restServiceImpl) prometheusMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -145,6 +153,8 @@ func (s *restServiceImpl) prometheusMiddleware(next http.Handler) http.Handler {
 		timer.ObserveDuration()
 	})
 }
+
+// https://www.alexedwards.net/blog/how-to-rate-limit-http-requests
 func (s *restServiceImpl) rateLimiterMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.limiter.Allow() == false {
@@ -154,6 +164,7 @@ func (s *restServiceImpl) rateLimiterMiddleware(next http.Handler) http.Handler 
 		next.ServeHTTP(w, r)
 	})
 }
+
 func (s *restServiceImpl) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := r.Header.Get("Authorization")
@@ -161,20 +172,72 @@ func (s *restServiceImpl) authMiddleware(next http.HandlerFunc) http.HandlerFunc
 			writeResponseMessage(w, http.StatusUnauthorized, "error", "missing authorization header")
 			return
 		}
-		tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
-		payload, err := s.jwt.Validate(tokenString)
-		if err != nil {
+
+		// try token auth
+		tenant, err := s.tokenAuth(r)
+		if err != nil && !errors.Is(err, ErrNonTokenAuth) {
 			writeResponseError(w, http.StatusUnauthorized, err)
 			return
 		}
-		if payload.GetTenant() != "" {
-			r = r.WithContext(context.WithValue(r.Context(), api.TenantKey, payload.GetTenant()))
-		} else {
-			r = r.WithContext(context.WithValue(r.Context(), api.TenantKey, api.TenantDefault))
+
+		if errors.Is(err, ErrNonTokenAuth) {
+			// try basic auth
+			tenant, err = s.basicAuth(r)
+			if err != nil {
+				writeResponseError(w, http.StatusUnauthorized, err)
+				return
+			}
 		}
-		//logger.Info("[auth] tenant: %v, %v %v", r.Context().Value(api.TenantKey), r.Method, r.URL.Path)
+
+		r = r.WithContext(context.WithValue(r.Context(), api.TenantKey, tenant))
 		next.ServeHTTP(w, r)
 	}
+}
+func (s *restServiceImpl) basicAuth(r *http.Request) (string, error) {
+	username, password, ok := r.BasicAuth()
+	if !ok {
+		return "", ErrUnauthorized
+	}
+
+	if s.cfg.RegisteredUsers == nil || len(s.cfg.RegisteredUsers) == 0 {
+		return "", ErrBasicAuthNotSupported
+	}
+
+	usernameHash := sha256.Sum256([]byte(username))
+	passwordHash := sha256.Sum256([]byte(password))
+
+	var userMatch bool
+	var passMatch bool
+
+	for _, cr := range s.cfg.RegisteredUsers {
+		userMatch = s.checkHash(usernameHash, cr.Login)
+		passMatch = s.checkHash(passwordHash, cr.Password)
+		if userMatch && passMatch {
+			return username, nil
+		}
+	}
+
+	return "", ErrUnauthorized
+}
+func (s *restServiceImpl) tokenAuth(r *http.Request) (string, error) {
+	authStr := r.Header.Get("Authorization")
+	if !strings.Contains(authStr, "Bearer ") {
+		return "", ErrNonTokenAuth
+	}
+	authStr = strings.Replace(authStr, "Bearer ", "", 1)
+	payload, err := s.jwt.Validate(authStr)
+	if err != nil {
+		return "", err
+	}
+	if payload.GetTenant() != "" {
+		return payload.GetTenant(), nil
+	} else {
+		return api.TenantDefault, nil
+	}
+}
+func (s *restServiceImpl) checkHash(hash [sha256.Size]byte, str string) bool {
+	check := sha256.Sum256([]byte(str))
+	return subtle.ConstantTimeCompare(hash[:], check[:]) == 1
 }
 
 // endregion

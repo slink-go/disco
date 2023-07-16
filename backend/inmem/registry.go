@@ -114,12 +114,12 @@ func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 	result := []api.Client{}
 	var clients map[string]api.Client
 	tenant := ctx.Value(api.TenantKey).(string)
-	logger.Debug("[registry][list] list for %v", tenant)
+	//logger.Debug("[registry][list] list for %v", tenant)
 	if tenant == api.TenantDefault || tenant == "" {
 		logger.Debug("[list] list all")
 		clients = rs.clients
 	} else {
-		logger.Debug("[list] list for tenant = %s", tenant)
+		//logger.Debug("[list] list for tenant = %s", tenant)
 		tnt, ok := rs.tenants[tenant]
 		if ok {
 			clients = tnt.Clients
