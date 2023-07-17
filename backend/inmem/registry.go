@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/slink-go/disco/backend/common"
+	"github.com/slink-go/disco/backend/inmem/store"
 	"github.com/slink-go/disco/common/api"
 	"github.com/slink-go/disco/server/config"
 	"github.com/slink-go/logger"
@@ -22,17 +23,17 @@ func (bi *inMemBackendInitializer) Init(cfg *config.AppConfig) api.Registry {
 }
 
 type inMemRegistry struct {
-	tenants      map[string]*common.Tenant
-	clients      map[string]api.Client
+	sync.RWMutex
+	tenants      *store.TenantsSync
+	clients      *store.ClientsSync
 	pingInterval api.Duration
 	maxClients   int
-	mutex        sync.RWMutex
 }
 
 func newInMemRegistry(cfg *config.AppConfig) api.Registry {
 	registry := inMemRegistry{
-		tenants:      map[string]*common.Tenant{},
-		clients:      map[string]api.Client{},
+		tenants:      store.CreateTenants(),
+		clients:      store.CreateClients(),
 		maxClients:   cfg.MaxClients,
 		pingInterval: api.Duration{Duration: cfg.PingDuration},
 	}
@@ -41,19 +42,19 @@ func newInMemRegistry(cfg *config.AppConfig) api.Registry {
 }
 
 func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*api.JoinResponse, error) {
-	rs.mutex.Lock()
-	defer rs.mutex.Unlock()
+	rs.Lock()
+	defer rs.Unlock()
 
 	logger.Debug("[registry][join] client join")
 
-	if len(rs.clients) >= rs.maxClients {
+	if rs.clients.Size() >= rs.maxClients {
 		return nil, api.NewMaxClientsReachedError(rs.maxClients)
 	}
 
-	tenant := ctx.Value(api.TenantKey).(string)
+	tnt := ctx.Value(api.TenantKey).(string)
 
 	clientId := rs.createClientId()
-	c, err := common.NewClient(clientId, request.ServiceId, tenant, request.Endpoints, request.Meta)
+	c, err := common.NewClient(clientId, request.ServiceId, tnt, request.Endpoints, request.Meta)
 	if err != nil {
 		return nil, err
 	}
@@ -61,14 +62,11 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	if rs.has(c) {
 		return nil, api.NewAlreadyRegisteredError()
 	}
-	rs.clients[clientId] = c
-	if rs.tenants[tenant] == nil {
-		rs.tenants[tenant] = &common.Tenant{
-			Name:    tenant,
-			Clients: make(map[string]api.Client),
-		}
+	rs.clients.Set(clientId, c)
+	if rs.tenants.Get(tnt) == nil {
+		rs.tenants.Set(tnt, store.CreateTenant(tnt))
 	}
-	rs.tenants[tenant].Clients[clientId] = c
+	rs.tenants.Get(tnt).Set(clientId, c)
 	rs.update(c)
 	logger.Debug("[registry][join] client %s joined", c.ClientId())
 	return &api.JoinResponse{
@@ -77,74 +75,45 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	}, nil
 }
 func (rs *inMemRegistry) Leave(ctx context.Context, clientId string) error {
-	client, ok := rs.clients[clientId]
-	if !ok {
+	client := rs.clients.Get(clientId)
+	if client == nil {
 		return api.NewClientNotFoundError(clientId)
 	}
 	logger.Debug("[registry][leave] remove client %s", clientId)
 	rs.remove(client)
 	return nil
-	//rs.mutex.Lock()
-	//defer rs.mutex.Unlock()
-	//logger.Debug("[registry][leave] client %s leave", clientId)
-	//_, ok := rs.clients[clientId]
-	//if !ok {
-	//	return api.NewClientNotFoundError(clientId)
-	//}
-	//logger.Debug("[registry][leave] remove client %s", clientId)
-	//delete(rs.clients, clientId)
-	//tenant := ctx.Value(api.TenantKey).(string)
-	//if tenant != "" {
-	//	_, ok = rs.tenants[tenant]
-	//	if !ok {
-	//		return api.NewTenantNotFoundError(tenant)
-	//	}
-	//	_, ok = rs.tenants[tenant].Clients[clientId]
-	//	if !ok {
-	//		return api.NewTenantsClientNotFoundError(clientId)
-	//	}
-	//	delete(rs.tenants[tenant].Clients, clientId)
-	//}
-	//logger.Debug("[registry][leave] client %s left", clientId)
-	//return nil
 }
 func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
-	rs.mutex.RLock()
-	defer rs.mutex.RUnlock()
-	result := []api.Client{}
-	var clients map[string]api.Client
+	rs.RLock()
+	defer rs.RUnlock()
+	var clients []api.Client
 	tenant := ctx.Value(api.TenantKey).(string)
-	//logger.Debug("[registry][list] list for %v", tenant)
 	if tenant == api.TenantDefault || tenant == "" {
 		logger.Debug("[list] list all")
-		clients = rs.clients
+		clients = rs.clients.List()
 	} else {
-		//logger.Debug("[list] list for tenant = %s", tenant)
-		tnt, ok := rs.tenants[tenant]
-		if ok {
-			clients = tnt.Clients
+		tnt := rs.tenants.Get(tenant)
+		if tnt != nil {
+			clients = tnt.Clients()
 		} else {
-			clients = make(map[string]api.Client)
+			clients = []api.Client{}
 		}
 	}
-	for _, t := range clients {
-		result = append(result, t)
-	}
-	logger.Debug("[registry][list] list for %v (%d)", tenant, len(result))
-	sort.Slice(result, func(a, b int) bool {
-		if result[a].ServiceId() != result[b].ServiceId() {
-			return result[a].ServiceId() < result[b].ServiceId()
+	logger.Debug("[registry][list] list for %v (%d)", tenant, len(clients))
+	sort.Slice(clients, func(a, b int) bool {
+		if clients[a].ServiceId() != clients[b].ServiceId() {
+			return clients[a].ServiceId() < clients[b].ServiceId()
 		} else {
-			return result[a].ClientId() < result[b].ClientId()
+			return clients[a].ClientId() < clients[b].ClientId()
 		}
 	})
-	return result
+	return clients
 }
 func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
-	rs.mutex.Lock()
-	defer rs.mutex.Unlock()
-	v, ok := rs.clients[clientId]
-	if !ok {
+	rs.Lock()
+	defer rs.Unlock()
+	v := rs.clients.Get(clientId)
+	if v == nil {
 		return api.Pong{}, api.NewClientNotFoundError(clientId)
 	}
 	if v.Ping() {
@@ -169,9 +138,9 @@ func (rs *inMemRegistry) createClientId() string {
 	return u.String()
 }
 func (rs *inMemRegistry) has(client api.Client) bool {
-	t, ok := rs.tenants[client.Tenant()]
-	if ok {
-		for _, c := range t.Clients {
+	t := rs.tenants.Get(client.Tenant())
+	if t != nil {
+		for _, c := range t.Clients() {
 			if rs.equalClients(c, client) {
 				return true
 			}
@@ -190,14 +159,16 @@ func (rs *inMemRegistry) run(cfg *config.AppConfig) {
 	go func() {
 		for {
 			time.Sleep(time.Second)
-			for _, t := range rs.tenants {
+			rs.RLock()
+			for _, t := range rs.tenants.List() {
 				go rs.runner(cfg, t)
 			}
+			rs.RUnlock()
 		}
 	}()
 }
-func (rs *inMemRegistry) runner(cfg *config.AppConfig, tenant *common.Tenant) {
-	for _, c := range tenant.Clients {
+func (rs *inMemRegistry) runner(cfg *config.AppConfig, tenant api.Tenant) {
+	for _, c := range tenant.Clients() {
 		interval := time.Now().Sub(c.LastSeen())
 		if time.Duration(cfg.RemoveThreshold)*cfg.PingDuration < interval {
 			if c.State() != api.ClientStateRemoved {
@@ -216,37 +187,36 @@ func (rs *inMemRegistry) failing(client api.Client) {
 	if client.State() != api.ClientStateFailing {
 		client.SetState(api.ClientStateFailing)
 		rs.update(client)
-		logger.Info("client %s failing", client.ClientId())
+		logger.Info("client %s (%s) failing", client.ClientId(), client.ServiceId())
 	}
 }
 func (rs *inMemRegistry) down(client api.Client) {
 	if client.State() != api.ClientStateDown {
 		client.SetState(api.ClientStateDown)
 		rs.update(client)
-		logger.Info("client %s down", client.ClientId())
+		logger.Info("client %s (%s) down", client.ClientId(), client.ServiceId())
 	}
 }
 func (rs *inMemRegistry) remove(client api.Client) {
-	rs.mutex.Lock()
-	defer rs.mutex.Unlock()
-	logger.Info("removing client %s", client.ClientId())
+	rs.Lock()
+	defer rs.Unlock()
+	logger.Info("removing client %s (%s)", client.ClientId(), client.ServiceId())
 	defer rs.update(client)
-	delete(rs.clients, client.ClientId())
-	for _, t := range rs.tenants {
-		_, ok := t.Clients[client.ClientId()]
-		if ok {
-			delete(t.Clients, client.ClientId())
+	rs.clients.Delete(client.ClientId())
+	for _, t := range rs.tenants.List() {
+		c := t.Get(client.ClientId())
+		if c != nil {
+			t.Delete(client.ClientId())
 			return
 		}
 	}
-
 }
 func (rs *inMemRegistry) update(client api.Client) {
-	t, ok := rs.tenants[client.Tenant()]
-	if !ok {
+	t := rs.tenants.Get(client.Tenant())
+	if t == nil {
 		return
 	}
-	for _, c := range t.Clients {
+	for _, c := range t.Clients() {
 		c.SetDirty(true)
 	}
 }

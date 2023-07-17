@@ -203,6 +203,17 @@ func NewEndpoint(url string) (Endpoint, error) {
 }
 
 // endregion
+// region - tenants
+
+type Tenant interface {
+	Name() string
+	Clients() []Client
+	Get(clientId string) Client
+	Set(clientId string, client Client)
+	Delete(clientId string)
+}
+
+// endregion
 // region - clients
 
 type Client interface {

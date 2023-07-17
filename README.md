@@ -1,6 +1,6 @@
 Disco is a discovery service (a kind of [eureka](https://github.com/Netflix/eureka) alternative) written in go.
 
-The simplest way to run this service is to use docker compose:
+The simplest way to run this service is to use docker compose ([see here](https://hub.docker.com/repository/docker/slinkgo/disco/general)):
 
 ```yaml
 services:
