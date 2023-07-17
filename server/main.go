@@ -94,9 +94,12 @@ func generateToken() bool {
 }
 func prepare() (*config.AppConfig, jwt.Jwt) {
 	cfg := config.Load()
-	j, err := jwt.Init(cfg.SecretKey)
-	if err != nil {
-		panic(err)
+	if cfg.SecretKey != "" {
+		j, err := jwt.Init(cfg.SecretKey)
+		if err != nil {
+			panic(err)
+		}
+		return cfg, j
 	}
-	return cfg, j
+	return cfg, nil
 }

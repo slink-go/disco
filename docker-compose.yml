@@ -12,16 +12,23 @@ x-deploy: &deploy
     resources:
       limits:
         cpus: "0.1"
-        memory: "50M"
+        memory: "100M"
 
 services:
   disco:
-    <<: [*deploy, *log]
-    image: slinkgo/disco
+    <<: [*log, *deploy]
+    image: slinkgo/disco:alpine
     container_name: disco
     ports:
       - "127.0.0.1:8080:8080"
     environment:
+#      - DISCO_MAX_CLIENTS=250
+      - DISCO_LIMIT_RATE=1000
+      - DISCO_LIMIT_BURST=1500
+      - DISCO_PING_INTERVAL=3s
+      - DISCO_CLIENT_FAILING_THRESHOLD=15
+      - DISCO_CLIENT_DOWN_THRESHOLD=20
+      - DISCO_CLIENT_REMOVE_THRESHOLD=25
       - DISCO_USERS=admin:admin,user:user
       - LOGGING_LEVEL=INFO
-#    restart: unless-stopped
+    restart: unless-stopped

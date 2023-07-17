@@ -31,13 +31,13 @@ case $1 in
     build_image "${VERSION_SHORT}" $1
     build_image "$1" $1
     build_image latest $1
-    rm ${DIR}/src/logo.txt > /dev/null
+    rm ${DIR}/server/logo.txt 2> /dev/null
   ;;
   debian)
     prepare
     build_image "${VERSION_SHORT}-$1" $1
     build_image "$1" $1
-    rm ${DIR}/src/logo.txt > /dev/null
+    rm ${DIR}/server/logo.txt 2> /dev/null
   ;;
   *)
     echo "supported targets: debian, alpine"

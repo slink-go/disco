@@ -4,3 +4,7 @@ scripts/
 cert/*.crt
 cert/*.key
 server/logo.txt
+run.log
+go.sum
+go.work.sum
+
