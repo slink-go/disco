@@ -161,6 +161,16 @@ type Pong struct {
 	Error    string   `json:"error"`
 }
 
+func (p *Pong) String() string {
+	if p == nil {
+		return ""
+	}
+	if p.Error == "" {
+		return fmt.Sprintf("%s", p.Response)
+	}
+	return p.Error
+}
+
 type JoinResponse struct {
 	ClientId     string   `json:"id,omitempty"`
 	PingInterval Duration `json:"interval,omitempty"`
