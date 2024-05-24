@@ -1,7 +1,7 @@
 FROM golang:alpine3.18 as build
 
-COPY    /.        /src
-WORKDIR           /src
+COPY    .           /src
+WORKDIR             /src
 
 # prepare
 RUN apk update
@@ -18,8 +18,9 @@ RUN upx --best -o build/disco-packed build/disco
 #FROM scratch // CAN NOT USE FROM SCRATCH, AS WE USE GOLANG PLUGINS FEATURE
 FROM alpine:3.18
 
-COPY --from=build   /src/build/disco-packed         /disco
-COPY --from=build   /src/build/inmem.so             /inmem.so
+COPY --from=build   /src/run/static/mini-default.min.css    /static/mini-default.min.css
+COPY --from=build   /src/build/disco-packed                 /disco
+COPY --from=build   /src/build/inmem.so                     /inmem.so
 
 ENV DISCO_MONITORING_ENABLED=true
 ENV DISCO_SERVICE_PORT=8080

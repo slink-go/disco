@@ -16,7 +16,7 @@ RUN upx --best -o build/disco-packed build/disco
 #FROM scratch // CAN NOT USE FROM SCRATCH, AS WE USE GOLANG PLUGINS FEATURE
 FROM debian:bullseye-slim
 
-COPY --from=build   /src/run/stastic/mini-default.min.css   /static/mini-default.min.css
+COPY --from=build   /src/run/static/mini-default.min.css    /static/mini-default.min.css
 COPY --from=build   /src/build/disco-packed                 /disco
 COPY --from=build   /src/build/inmem.so                     /inmem.so
 
