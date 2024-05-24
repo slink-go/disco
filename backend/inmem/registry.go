@@ -7,7 +7,7 @@ import (
 	"github.com/slink-go/disco/backend/inmem/store"
 	"github.com/slink-go/disco/common/api"
 	"github.com/slink-go/disco/server/config"
-	"github.com/slink-go/logger"
+	"github.com/slink-go/logging"
 	"reflect"
 	"sort"
 	"sync"
@@ -28,6 +28,7 @@ type inMemRegistry struct {
 	clients      *store.ClientsSync
 	pingInterval api.Duration
 	maxClients   int
+	logger       logging.Logger
 }
 
 func newInMemRegistry(cfg *config.AppConfig) api.Registry {
@@ -36,6 +37,7 @@ func newInMemRegistry(cfg *config.AppConfig) api.Registry {
 		clients:      store.CreateClients(),
 		maxClients:   cfg.MaxClients,
 		pingInterval: api.Duration{Duration: cfg.PingDuration},
+		logger:       logging.GetLogger("reg-inmem"),
 	}
 	registry.run(cfg)
 	return &registry
@@ -45,7 +47,7 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	rs.Lock()
 	defer rs.Unlock()
 
-	logger.Debug("[registry][join] client join")
+	rs.logger.Debug("[registry][join] client join")
 
 	if rs.clients.Size() >= rs.maxClients {
 		return nil, api.NewMaxClientsReachedError(rs.maxClients)
@@ -68,7 +70,7 @@ func (rs *inMemRegistry) Join(ctx context.Context, request api.JoinRequest) (*ap
 	}
 	rs.tenants.Get(tnt).Set(clientId, c)
 	rs.update(c)
-	logger.Debug("[registry][join] client %s joined", c.ClientId())
+	rs.logger.Debug("[registry][join] client %s joined", c.ClientId())
 	return &api.JoinResponse{
 		ClientId:     clientId,
 		PingInterval: rs.pingInterval,
@@ -79,17 +81,21 @@ func (rs *inMemRegistry) Leave(ctx context.Context, clientId string) error {
 	if client == nil {
 		return api.NewClientNotFoundError(clientId)
 	}
-	logger.Debug("[registry][leave] remove client %s", clientId)
+	rs.logger.Debug("[registry][leave] remove client %s", clientId)
 	rs.remove(client)
 	return nil
 }
 func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
+	if ctx.Value(api.TenantKey) == nil || ctx.Value(api.TenantKey) == "" {
+		rs.logger.Warning("no tenant context set; return empty list")
+		return make([]api.Client, 0)
+	}
 	rs.RLock()
 	defer rs.RUnlock()
 	var clients []api.Client
 	tenant := ctx.Value(api.TenantKey).(string)
 	if tenant == api.TenantDefault || tenant == "" {
-		logger.Debug("[list] list all")
+		rs.logger.Debug("[list] list all")
 		clients = rs.clients.List()
 	} else {
 		tnt := rs.tenants.Get(tenant)
@@ -99,7 +105,7 @@ func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 			clients = []api.Client{}
 		}
 	}
-	logger.Debug("[registry][list] list for %v (%d)", tenant, len(clients))
+	rs.logger.Debug("[registry][list] list for %v (%d)", tenant, len(clients))
 	sort.Slice(clients, func(a, b int) bool {
 		if clients[a].ServiceId() != clients[b].ServiceId() {
 			return clients[a].ServiceId() < clients[b].ServiceId()
@@ -108,6 +114,11 @@ func (rs *inMemRegistry) List(ctx context.Context) []api.Client {
 		}
 	})
 	return clients
+}
+func (rs *inMemRegistry) ListAll() []api.Tenant {
+	rs.RLock()
+	defer rs.RUnlock()
+	return rs.tenants.List()
 }
 func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
 	rs.Lock()
@@ -124,7 +135,7 @@ func (rs *inMemRegistry) Ping(clientId string) (api.Pong, error) {
 		v.SetDirty(false)
 		response = api.PongTypeChanged
 	}
-	logger.Debug("[registry][ping] client '%s' ping: '%s'", clientId, response)
+	rs.logger.Debug("[registry][ping] client '%s' ping: '%s'", clientId, response)
 	return api.Pong{
 		Response: response,
 	}, nil
@@ -187,20 +198,20 @@ func (rs *inMemRegistry) failing(client api.Client) {
 	if client.State() != api.ClientStateFailing {
 		client.SetState(api.ClientStateFailing)
 		rs.update(client)
-		logger.Info("client %s (%s) failing", client.ClientId(), client.ServiceId())
+		rs.logger.Info("client %s (%s) failing", client.ClientId(), client.ServiceId())
 	}
 }
 func (rs *inMemRegistry) down(client api.Client) {
 	if client.State() != api.ClientStateDown {
 		client.SetState(api.ClientStateDown)
 		rs.update(client)
-		logger.Info("client %s (%s) down", client.ClientId(), client.ServiceId())
+		rs.logger.Info("client %s (%s) down", client.ClientId(), client.ServiceId())
 	}
 }
 func (rs *inMemRegistry) remove(client api.Client) {
 	rs.Lock()
 	defer rs.Unlock()
-	logger.Info("removing client %s (%s)", client.ClientId(), client.ServiceId())
+	rs.logger.Info("removing client %s (%s)", client.ClientId(), client.ServiceId())
 	defer rs.update(client)
 	rs.clients.Delete(client.ClientId())
 	for _, t := range rs.tenants.List() {

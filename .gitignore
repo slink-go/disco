@@ -7,4 +7,4 @@ server/logo.txt
 run.log
 go.sum
 go.work.sum
-
+*_templ.go

@@ -247,6 +247,7 @@ type Registry interface {
 	Join(ctx context.Context, request JoinRequest) (*JoinResponse, error)
 	Leave(ctx context.Context, clientId string) error
 	List(ctx context.Context) []Client
+	ListAll() []Tenant
 	Ping(clientId string) (Pong, error)
 }
 

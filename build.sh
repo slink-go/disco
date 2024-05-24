@@ -13,11 +13,13 @@ function prepare() {
   cat ${DIR}/build/logo.txt | sed -e "s/VERSION/${VERSION_LONG}/g" > ${DIR}/server/logo.txt
 }
 function build_image() {
+  docker buildx create --use
   docker buildx build         \
      -f Dockerfile.$2         \
      --push                   \
      --platform ${PLATFORMS}  \
      --tag slinkgo/disco:$1 .
+     docker buildx rm
 }
 
 
@@ -38,6 +40,12 @@ case $1 in
     build_image "${VERSION_SHORT}-$1" $1
     build_image "$1" $1
     rm ${DIR}/server/logo.txt 2> /dev/null
+  ;;
+  bin)
+    prepare
+    templ generate && \
+    go build -ldflags "-s -w" -buildmode plugin -o build/inmem.so backend/inmem/registry.go && \
+    go build -ldflags="-s -w" -o build/disco ./server
   ;;
   *)
     echo "supported targets: debian, alpine"

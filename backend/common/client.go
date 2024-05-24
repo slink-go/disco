@@ -2,7 +2,7 @@ package common
 
 import (
 	"github.com/slink-go/disco/common/api"
-	"github.com/slink-go/logger"
+	"github.com/slink-go/logging"
 	"time"
 )
 
@@ -15,9 +15,11 @@ type client struct {
 	LastSeen_  time.Time       `json:"-"`
 	State_     api.ClientState `json:"state"`
 	Dirty_     bool            `json:"-"`
+	logger     logging.Logger
 }
 
 func NewClient(clientId, serviceId, tenant string, endpoints []string, meta map[string]any) (api.Client, error) {
+	logger := logging.GetLogger("client")
 	var ep []api.Endpoint
 	for _, u := range endpoints {
 		v, err := api.NewEndpoint(u)
@@ -36,6 +38,7 @@ func NewClient(clientId, serviceId, tenant string, endpoints []string, meta map[
 		State_:     api.ClientStateStarting,
 		Tenant_:    tenant,
 		Dirty_:     true,
+		logger:     logger,
 	}, nil
 }
 
@@ -58,7 +61,7 @@ func (c *client) Ping() bool {
 	c.LastSeen_ = time.Now()
 	if c.State() != api.ClientStateUp {
 		c.SetState(api.ClientStateUp)
-		logger.Info("client %s (%s) up", c.ClientId(), c.ServiceId())
+		c.logger.Info("client %s (%s) up", c.ClientId(), c.ServiceId())
 		return true
 	}
 	return false

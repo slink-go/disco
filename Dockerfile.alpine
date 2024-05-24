@@ -9,6 +9,8 @@ RUN apk update
 RUN apk --no-cache add build-base binutils-gold
 RUN go build -ldflags "-s -w" -buildmode plugin -o build/inmem.so backend/inmem/registry.go
 # build application
+RUN go install github.com/a-h/templ/cmd/templ@latest
+RUN templ generate
 RUN go build -ldflags="-s -w" -o build/disco ./server
 RUN apk --no-cache add upx
 RUN upx --best -o build/disco-packed build/disco

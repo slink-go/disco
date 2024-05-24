@@ -1,0 +1,61 @@
+package templates
+
+import "fmt"
+
+templ RegistryPage(cards []Card) {
+    <html>
+        <head>
+            <link rel="stylesheet" href="/s/mini-default.min.css"/>
+        </head>
+        <body>
+            <div class="row">
+                <h1>
+                    Registry
+                </h1>
+            </div>
+            <hr/>
+            <div class="container" style="padding: 0.25rem">
+                @Tenants(cards)
+            </div>
+        </body>
+    </html>
+}
+
+templ Tenants(cards []Card) {
+    for _, card := range cards {
+        <div class="row">
+            <h3> Tenant: { card.Tenant } </h3>
+        </div>
+        <div class="row">
+            @Services(card.Services)
+        </div>
+        <hr/>
+    }
+}
+
+templ Services(services []Service) {
+    for _, svc := range services {
+        <div class="card fluid">
+            @templ.Raw(fmt.Sprintf("<div class=\"section\" style=\"background-color: %s\">", svc.Color))
+                <h3 class="doc">{ svc.Title }</h3>
+            @templ.Raw("</div>")
+            <div class="section">
+                @Instances( svc.Endpoints )
+            </div>
+        </div>
+    }
+}
+
+templ Instances(endpoints []string) {
+    <div class="section">
+        <ul>
+        for _, item := range endpoints {
+            <li>
+                <p class="doc>">
+                    { item }
+                </p>
+            </li>
+        }
+        </ul>
+    </div>
+}

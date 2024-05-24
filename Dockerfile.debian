@@ -6,6 +6,8 @@ WORKDIR           /src
 # build libraries
 RUN go build -ldflags "-s -w" -buildmode plugin -o build/inmem.so backend/inmem/registry.go
 # build application
+RUN go install github.com/a-h/templ/cmd/templ@latest
+RUN templ generate
 RUN go build -ldflags="-s -w" -o build/disco ./server
 RUN apt update
 RUN apt install -y upx
@@ -14,8 +16,9 @@ RUN upx --best -o build/disco-packed build/disco
 #FROM scratch // CAN NOT USE FROM SCRATCH, AS WE USE GOLANG PLUGINS FEATURE
 FROM debian:bullseye-slim
 
-COPY --from=build   /src/build/disco-packed         /disco
-COPY --from=build   /src/build/inmem.so             /inmem.so
+COPY --from=build   /src/run/stastic/mini-default.min.css   /static/mini-default.min.css
+COPY --from=build   /src/build/disco-packed                 /disco
+COPY --from=build   /src/build/inmem.so                     /inmem.so
 
 ENV DISCO_MONITORING_ENABLED=true
 ENV DISCO_SERVICE_PORT=8080

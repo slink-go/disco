@@ -8,13 +8,14 @@ import (
 	"github.com/slink-go/disco/server/controller/rest"
 	"github.com/slink-go/disco/server/jwt"
 	"github.com/slink-go/disco/server/registry"
-	"github.com/slink-go/logger"
+	"github.com/slink-go/logging"
 	"github.com/xhit/go-str2duration/v2"
 	"time"
 )
 
 //go:embed logo.txt
 var discoLogo string
+var logger logging.Logger
 
 func main() {
 
@@ -23,13 +24,14 @@ func main() {
 	}
 
 	cfg, j := prepare()
+	logger = logging.GetLogger("main")
 
 	// Print Version
 	fmt.Println("")
 	fmt.Println(discoLogo)
 	fmt.Println("")
 
-	logger.Info("[cfg] monitoring enabled: %v", cfg.MonitoringEnabled)
+	logger.Info("[cfg] monitoring port: %v", cfg.MonitoringPort)
 	logger.Info("[cfg] service port: %v", cfg.ServicePort)
 	logger.Info("[cfg] service secured: %v", cfg.Secured)
 	logger.Info("[cfg] certificate file: %v", cfg.SslCertFile)
@@ -52,11 +54,11 @@ func main() {
 	}
 	r := b.Init(cfg)
 
-	restSvc, err := rest.Init(j, r, cfg)
+	restSvc, err := rest.NewDiscoService(j, r, cfg)
 	if err != nil {
 		panic(err)
 	}
-	restSvc.Run(fmt.Sprintf(":%d", cfg.ServicePort))
+	restSvc.Run()
 
 }
 func generateToken() bool {
