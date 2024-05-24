@@ -13,12 +13,20 @@ function prepare() {
   cat ${DIR}/build/logo.txt | sed -e "s/VERSION/${VERSION_LONG}/g" > ${DIR}/server/logo.txt
 }
 function build_image() {
+  FILE=$1
+  shift
+  TAGS=""
+  for var in "$@"
+  do
+      TAGS="${TAGS} -t slinkgo/disco:$var"
+  done
+  echo "TAGS: $TAGS"
   docker buildx create --use
   docker buildx build         \
-     -f Dockerfile.$2         \
+     -f Dockerfile.$FILE      \
      --push                   \
      --platform ${PLATFORMS}  \
-     --tag slinkgo/disco:$1 .
+     ${TAGS} .
      docker buildx rm
 }
 
@@ -29,16 +37,12 @@ case $1 in
   ;;
   alpine)
     prepare
-    build_image "${VERSION_SHORT}-$1" $1
-    build_image "${VERSION_SHORT}" $1
-    build_image "$1" $1
-    build_image latest $1
+    build_image $1 "${VERSION_SHORT}-$1" "${VERSION_SHORT}" "$1" "latest"
     rm ${DIR}/server/logo.txt 2> /dev/null
   ;;
   debian)
     prepare
-    build_image "${VERSION_SHORT}-$1" $1
-    build_image "$1" $1
+    build_image $1 "$1" "${VERSION_SHORT}-$1"
     rm ${DIR}/server/logo.txt 2> /dev/null
   ;;
   bin)
