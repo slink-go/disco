@@ -81,3 +81,14 @@ func parseConfiguredUsers(users string) []Credentials {
 	}
 	return result
 }
+
+func StaticFilePath() string {
+	staticFilePath := os.Getenv("STATIC_FILE_PATH")
+	if staticFilePath == "" {
+		staticFilePath = "/static/"
+	}
+	if !strings.HasSuffix(staticFilePath, "/") {
+		staticFilePath = staticFilePath + "/"
+	}
+	return staticFilePath
+}

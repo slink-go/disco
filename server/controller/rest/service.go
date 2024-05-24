@@ -22,7 +22,6 @@ import (
 	"golang.org/x/time/rate"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -222,15 +221,7 @@ func (s *restServiceImpl) configureMonitoringRouter() *mux.Router {
 	router.Use(s.prometheusMiddleware)
 	router.Path("/metrics").Handler(promhttp.Handler())
 
-	staticFilePath := os.Getenv("STATIC_FILE_PATH")
-	if staticFilePath != "" {
-		staticFilePath = "/static/"
-	}
-	if !strings.HasSuffix(staticFilePath, "/") {
-		staticFilePath = staticFilePath + "/"
-	}
-
-	fs := http.FileServer(http.Dir(staticFilePath))
+	fs := http.FileServer(http.Dir(config.StaticFilePath()))
 	router.PathPrefix("/s/").Handler(http.StripPrefix("/s/", fs))
 	router.HandleFunc("/", s.monitoringPage).Methods("GET")
 

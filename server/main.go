@@ -47,6 +47,7 @@ func main() {
 	//logger.Info("[cfg] secret key: %v", cfg.SecretKey)
 	logger.Info("[cfg] backend type: %v", cfg.BackendType)
 	logger.Info("[cfg] plugin dir: %v", cfg.PluginDir)
+	logger.Info("[cfg] static file path: %v", config.StaticFilePath())
 
 	b, err := registry.LoadBackend(cfg.PluginDir, cfg.BackendType)
 	if err != nil {
